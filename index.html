@@ -48,7 +48,7 @@
   #feed::-webkit-scrollbar { display: none; }
   .card {
     height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
-    padding: calc(env(safe-area-inset-top) + 56px) 20px 76px;
+    padding: calc(env(safe-area-inset-top) + 76px) 20px 76px;
     display: flex; flex-direction: column; position: relative;
     background: radial-gradient(120% 80% at 80% 0%, #1d1d2e 0%, var(--bg) 60%);
   }
@@ -76,11 +76,14 @@
     display: flex; gap: 8px; padding: 0 16px; z-index: 5; justify-content: center;
   }
   .chip {
-    border: 1px solid #262633; border-radius: 15px; padding: 7px 13px; font-size: 12.5px;
+    border: 1px solid #262633; border-radius: 12px; padding: 4px 12px; font-size: 12px;
     font-weight: 600; background: rgba(22,22,31,.85); color: var(--muted);
-    backdrop-filter: blur(10px); cursor: pointer;
+    backdrop-filter: blur(10px); cursor: pointer; line-height: 1.4;
   }
-  .chip.active { background: var(--accent); color: #fff; border-color: transparent; }
+  .chip.active {
+    background: linear-gradient(135deg, #4f7cff 0%, #8b5cf6 100%);
+    color: #fff; border-color: transparent;
+  }
 
   .card-actions { display: flex; gap: 10px; margin-top: 14px; }
   .act-btn {

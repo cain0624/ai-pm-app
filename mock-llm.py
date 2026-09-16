@@ -44,6 +44,7 @@ class Handler(BaseHTTPRequestHandler):
             body = {}
         msgs = body.get("messages", [])
         last = msgs[-1] if msgs else {}
+        sys_text = " ".join(str(m.get("content", "")) for m in msgs if m.get("role") == "system")
 
         if not body.get("stream"):
             self.send_response(200)
@@ -52,6 +53,40 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(
                 {"choices": [{"message": {"role": "assistant", "content": "pong"}}]}).encode())
+            return
+
+        if "模拟面试官" in sys_text:
+            # ---- 模拟面试脚本 ----
+            if last.get("role") == "user":
+                q1 = json.dumps({"question": "Q1：项目里整体 containment 71%，但长尾纠纷场景掉到 40% 以下，你会怎么归因并设计改进方案？", "topic": "AI客服 · 人机协同"}, ensure_ascii=False)
+                chunks = [{"content": "你好，我是本场面试官。材料我已看完，我们直接开始。"},
+                          {"tool_calls": [{"index": 0, "id": "iv1", "type": "function",
+                                           "function": {"name": "ask_question", "arguments": q1}}]}]
+            elif last.get("role") == "tool" and last.get("name") == "ask_question":
+                n = sum(1 for m in msgs if m.get("role") == "tool" and m.get("name") == "ask_question")
+                if n >= 10:
+                    fin = json.dumps({"overall": 78,
+                                      "dims": [{"name": "产品思维", "score": 85, "comment": "能锚定指标归因"},
+                                               {"name": "技术理解", "score": 75, "comment": "架构基本清楚"},
+                                               {"name": "结构化表达", "score": 82, "comment": "分点清晰"},
+                                               {"name": "落地经验", "score": 70, "comment": "案例偏少"}],
+                                      "summary": "整体表现良好：能从指标出发定位问题并给出分层方案；建议加强对合规细节与商业化权衡的展开。",
+                                      "perQ": ["Q1 归因清晰", "Q2 方案分层", "Q3 指标意识好", "Q4 权衡明确", "Q5 略浅",
+                                               "Q6 结构好", "Q7 有数据感", "Q8 漏了留痕期限", "Q9 定价逻辑顺", "Q10 反问加分"]},
+                                     ensure_ascii=False)
+                    chunks = [{"tool_calls": [{"index": 0, "id": "ivf", "type": "function",
+                                               "function": {"name": "finish_interview", "arguments": fin}}]}]
+                else:
+                    txt = "收到，思路清楚。"
+                    q = json.dumps({"question": f"Q{n+1}：追问第 {n+1} 题——商户知识库上线平均 9 天，你会怎么设计把它压到 3 天以内的产品方案？", "topic": "ToB 交付"}, ensure_ascii=False)
+                    chunks = [{"content": txt},
+                              {"tool_calls": [{"index": 0, "id": f"iv{n+1}", "type": "function",
+                                               "function": {"name": "ask_question", "arguments": q}}]}]
+            elif last.get("role") == "tool" and last.get("name") == "finish_interview":
+                chunks = [{"content": "本场模拟面试结束，评估卡已生成，可收藏回顾。"}]
+            else:
+                chunks = [{"content": "请继续。"}]
+            self.sse(chunks)
             return
 
         if last.get("role") == "user":

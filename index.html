@@ -1664,7 +1664,7 @@ startQuiz();
   // ---- agent 循环 ----
   async function runAgentTurn(userText){
     if(busy) return;
-    if(!loadLlm().key){ openSettings(); return; }
+    if(!loadLlm().key){ addBubble('assistant','需要先在右上角 ⚙️ 设置里配置一个大模型 API（OpenAI / 智谱 GLM / DeepSeek 等均可），才能和教练对话。'); openSettings(); return; }
     busy = true; setBusy(true); abortCtrl = new AbortController();
     history.push({ role:'user', content:userText }); store.set('aipm_chat', history);
     addBubble('user', esc(userText));
@@ -1858,7 +1858,11 @@ startQuiz();
 
   function startMockInterview(){
     if (interviewBusy || busy) return;
-    if (!loadLlm().key) { openSettings(); return; }
+    if (!loadLlm().key) {
+      addBubble('assistant', '🎤 模拟面试由 AI 教练驱动，需要先配置一个大模型 API（OpenAI / 智谱 GLM / DeepSeek 等均可，⚠️设置里填）。配好后再点「模拟面试」即可。注：随机抽查和首页语音不需要 key。');
+      openSettings();
+      return;
+    }
     interviewDone = false; interviewQA = [];
     addBubble('assistant', '🎤 模拟面试准备。请先完整阅读下面的项目材料，读完后点「开始面试」（或等 5 分钟自动开始）。面试官会基于项目 + 面试知识点提问，共 10 题。');
     const card = document.createElement('div'); card.className = 'briefing';

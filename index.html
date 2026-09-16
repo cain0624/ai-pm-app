@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>AI产品经理刷题</title>
+<style>
+  :root {
+    --bg: #0d0d12;
+    --card: #16161f;
+    --accent: #fe2c55;
+    --accent2: #25f4ee;
+    --text: #f1f1f5;
+    --muted: #9a9aa8;
+    --ok: #2ecc71;
+    --bad: #e74c3c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+
+  /* ===== App shell ===== */
+  #app { height: 100dvh; display: flex; flex-direction: column; }
+  .page { flex: 1; display: none; overflow: hidden; position: relative; }
+  .page.active { display: block; }
+
+  /* ===== Tab bar ===== */
+  #tabbar {
+    display: flex; border-top: 1px solid #23232e;
+    background: rgba(13,13,18,.92); backdrop-filter: blur(12px);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 10px 0 6px; color: var(--muted);
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .tab .icon { font-size: 22px; display: block; line-height: 1.2; }
+  .tab.active { color: #fff; }
+
+  /* ===== Feed page (TikTok style) ===== */
+  #feed {
+    height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+  }
+  #feed::-webkit-scrollbar { display: none; }
+  .card {
+    height: 100%; scroll-snap-align: start; scroll-snap-stop: always;
+    padding: calc(env(safe-area-inset-top) + 56px) 20px 76px;
+    display: flex; flex-direction: column; position: relative;
+    background: radial-gradient(120% 80% at 80% 0%, #1d1d2e 0%, var(--bg) 60%);
+  }
+  .q-tag { color: var(--accent2); font-size: 13px; margin-bottom: 8px; font-weight: 600; letter-spacing: .5px; }
+  .q-title { font-size: 22px; font-weight: 700; line-height: 1.35; margin-bottom: 14px; }
+  .q-body {
+    flex: 1; overflow-y: auto; font-size: 15px; line-height: 1.75; color: #d6d6e0;
+    padding-right: 6px; scrollbar-width: none;
+  }
+  .q-body::-webkit-scrollbar { display: none; }
+  .q-body b { color: var(--accent2); font-weight: 600; }
+  .q-body li { margin-bottom: 10px; margin-left: 18px; }
+
+  /* 左上角语音开关 */
+  #soundToggle {
+    position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 14px; z-index: 6;
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid #262633;
+    background: rgba(22,22,31,.85); color: var(--text); font-size: 16px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px);
+  }
+
+  /* 收藏 / 标记 / 过滤 */
+  #chipBar {
+    position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 0; right: 0;
+    display: flex; gap: 8px; padding: 0 16px; z-index: 5; justify-content: center;
+  }
+  .chip {
+    border: 1px solid #262633; border-radius: 15px; padding: 7px 13px; font-size: 12.5px;
+    font-weight: 600; background: rgba(22,22,31,.85); color: var(--muted);
+    backdrop-filter: blur(10px); cursor: pointer;
+  }
+  .chip.active { background: var(--accent); color: #fff; border-color: transparent; }
+
+  .card-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .act-btn {
+    flex: 1; padding: 11px 0; border-radius: 12px; font-size: 13.5px; font-weight: 600;
+    background: rgba(22,22,31,.85); color: var(--muted); border: 1.5px solid #262633; cursor: pointer;
+  }
+  .act-btn.active { color: #ffd166; border-color: #4a3b12; background: #221d10; }
+  .act-btn[data-act="mark"].active { color: var(--accent2); border-color: #123a3c; background: #0f2122; }
+
+  .feed-empty {
+    height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; font-size: 17px; font-weight: 600; color: var(--muted); text-align: center; line-height: 1.7;
+  }
+  .feed-empty span { font-size: 13px; font-weight: 400; color: #6d6d7c; }
+
+  .swipe-hint {
+    position: absolute; bottom: 84px; left: 0; right: 0; text-align: center;
+    color: var(--muted); font-size: 12px; animation: bounce 1.6s infinite;
+  }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
+
+  .card-counter { position: absolute; top: calc(env(safe-area-inset-top) + 16px); right: 16px; font-size: 12px; color: var(--muted); }
+
+  /* ===== Podcast page ===== */
+  #podList {
+    height: 100%; overflow-y: auto; scrollbar-width: none;
+    padding: calc(env(safe-area-inset-top) + 24px) 16px 24px;
+  }
+  #podList::-webkit-scrollbar { display: none; }
+  .pod-title { font-size: 24px; font-weight: 800; margin: 0 4px; }
+  .pod-sub { color: var(--muted); font-size: 13px; margin: 6px 4px 20px; line-height: 1.6; }
+  .pod-card {
+    border-radius: 16px; overflow: hidden; margin-bottom: 18px;
+    background: var(--card); border: 1px solid #23232e; cursor: pointer;
+  }
+  .pod-cover {
+    height: 132px; position: relative; display: flex; align-items: flex-end;
+    padding: 12px 16px;
+  }
+  .pod-cover .badge {
+    position: absolute; top: 12px; left: 16px; font-size: 11px; padding: 4px 9px;
+    border-radius: 8px; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); font-weight: 600;
+  }
+  .pod-cover h3 { font-size: 18px; line-height: 1.35; text-shadow: 0 1px 10px rgba(0,0,0,.65); }
+  .pod-play {
+    position: absolute; right: 14px; bottom: 14px;
+    width: 46px; height: 46px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,.94); color: #111; font-size: 18px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.45); z-index: 2;
+  }
+
+  /* 迷你播放器（播客源音频） */
+  #playerSheet {
+    position: fixed; left: 0; right: 0; bottom: calc(58px + env(safe-area-inset-bottom));
+    z-index: 40; display: none;
+    background: #16161f; border-top: 1px solid #2a2a38;
+    border-radius: 18px 18px 0 0; box-shadow: 0 -12px 40px rgba(0,0,0,.6);
+    padding: 10px 14px 12px;
+  }
+  #playerSheet.open { display: block; }
+  .player-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .player-title {
+    flex: 1; font-size: 13.5px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .player-close {
+    border: none; background: #22222e; color: var(--muted); width: 30px; height: 30px;
+    border-radius: 50%; font-size: 14px; cursor: pointer; flex-shrink: 0;
+  }
+  .player-frame {
+    width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 12px;
+    background: #000; display: block;
+  }
+  .player-links { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .player-links a {
+    font-size: 12px; color: var(--accent2); text-decoration: none;
+    background: #10161a; border: 1px solid #1d3033; padding: 6px 10px; border-radius: 10px;
+  }
+  .pod-meta { padding: 12px 16px 0; font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .pod-card .desc { padding: 8px 16px 14px; font-size: 13px; color: #c9c9d6; line-height: 1.7; }
+
+  #podArticle {
+    height: 100%; overflow-y: auto; scrollbar-width: none; display: none;
+    padding: calc(env(safe-area-inset-top) + 16px) 18px 28px;
+  }
+  #podArticle::-webkit-scrollbar { display: none; }
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px; color: var(--muted);
+    font-size: 14px; padding: 8px 14px 8px 10px; border-radius: 18px;
+    background: #1c1c28; margin-bottom: 16px; cursor: pointer; border: 1px solid #262633;
+  }
+  .art-title { font-size: 22px; font-weight: 800; line-height: 1.4; margin-bottom: 10px; }
+  .art-meta {
+    font-size: 12.5px; color: var(--muted); line-height: 1.8; margin-bottom: 16px;
+    padding-bottom: 14px; border-bottom: 1px solid #23232e;
+  }
+  .art-sec h4 { font-size: 16px; margin: 22px 0 10px; color: var(--accent2); }
+  .art-sec p, .art-sec li { font-size: 14.5px; line-height: 1.75; color: #d6d6e0; }
+  .art-sec ul { margin: 0 0 10px 18px; }
+  .art-sec li { margin-bottom: 9px; }
+  .art-sec b { color: var(--accent2); font-weight: 600; }
+  .art-sec blockquote {
+    border-left: 3px solid var(--accent); padding: 10px 12px; margin: 10px 0;
+    background: #1c1c28; border-radius: 0 10px 10px 0; font-size: 13.5px; color: #c9c9d6; line-height: 1.7;
+  }
+  .art-sec table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 10px 0; }
+  .art-sec th, .art-sec td { border: 1px solid #262633; padding: 8px 7px; text-align: left; line-height: 1.55; }
+  .art-sec th { background: #1c1c28; color: var(--accent2); white-space: nowrap; }
+
+  /* ===== Coach quick buttons + 抽查总结卡 ===== */
+  .coach-quick { display: flex; gap: 8px; padding: 8px 14px 0; }
+  .quick-btn {
+    flex: 1; border: 1px solid #2a2a38; background: #1c1c28; color: #c9c9d6;
+    border-radius: 10px; padding: 9px 0; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .quick-btn:active { background: #22222e; }
+  .round-summary { align-self: stretch; background: var(--card); border: 1px solid #23232e; border-radius: 12px; padding: 12px 14px; }
+  .rs-head { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .rs-head b { color: var(--accent2); font-size: 18px; }
+  .rs-row { padding: 8px 0; border-bottom: 1px solid #1d1d26; font-size: 13px; line-height: 1.5; }
+  .rs-row:last-child { border-bottom: 0; }
+  .rs-row .rs-q { display: block; color: #e0e0ea; }
+  .rs-row .rs-ans { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .rs-row.ok .rs-ans { color: var(--ok); }
+  .rs-row.bad .rs-ans { color: var(--bad); }
+  .rs-btns { display: flex; gap: 8px; margin-top: 12px; }
+  .rs-btns .btn { flex: 1; }
+  .rs-btns .btn:disabled { opacity: .5; }
+  /* 首页 ⭐ 视图里的抽查总结卡 */
+  .round-card .rc-list { margin-left: 16px; }
+  .round-card .rc-list li { margin-bottom: 8px; font-size: 13.5px; line-height: 1.6; }
+  .round-card .rc-list li.ok { color: #cfe9d6; }
+  .round-card .rc-list li.bad { color: #f0d0d0; }
+  .round-card .rc-ans { color: var(--muted); font-size: 12px; }
+
+  /* ===== Coach page (AI 教练) ===== */
+  #page-coach { height: 100%; display: none; flex-direction: column; }
+  #page-coach.active { display: flex; }
+  .coach-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: calc(env(safe-area-inset-top) + 12px) 14px 10px; border-bottom: 1px solid #23232e;
+  }
+  .coach-head h2 { font-size: 17px; flex: 1; }
+  .icon-btn {
+    border: 1px solid #2a2a38; background: #1c1c28; color: var(--muted);
+    border-radius: 10px; padding: 7px 11px; font-size: 13px; cursor: pointer;
+  }
+  #chatLog {
+    flex: 1; overflow-y: auto; scrollbar-width: none; padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #chatLog::-webkit-scrollbar { display: none; }
+  .msg { max-width: 86%; padding: 11px 14px; border-radius: 14px; font-size: 14.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+  .msg.assistant { align-self: flex-start; background: var(--card); border: 1px solid #23232e; color: #e6e6ee; }
+  .msg.assistant b { color: var(--accent2); }
+  .activity {
+    align-self: flex-start; font-size: 12.5px; color: var(--muted);
+    background: #12121a; border: 1px dashed #2e2e3c; border-radius: 10px; padding: 6px 10px; display: none;
+  }
+  .activity.show { display: block; }
+  .inline-quiz { align-self: stretch; background: var(--card); border: 1px solid #23232e; border-radius: 12px; padding: 12px 14px; }
+  .inline-quiz .iq-q { font-size: 14.5px; font-weight: 600; margin: 4px 0 10px; line-height: 1.5; }
+  .inline-quiz .iq-block { margin-bottom: 14px; }
+  .inline-quiz .iq-block:last-child { margin-bottom: 4px; }
+  .inline-quiz .opt { margin-bottom: 8px; padding: 11px 13px; }
+  .inline-quiz .explain { display: none; margin-top: 4px; }
+  .coach-input { display: flex; gap: 8px; padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid #23232e; }
+  #coachInput {
+    flex: 1; resize: none; max-height: 96px; border-radius: 12px; padding: 11px 13px;
+    background: var(--card); border: 1px solid #2a2a38; color: var(--text); font-size: 15px; line-height: 1.5; font-family: inherit;
+  }
+  #coachSend { border: none; background: var(--accent); color: #fff; border-radius: 12px; padding: 0 18px; font-weight: 600; font-size: 15px; cursor: pointer; }
+  #coachSend:disabled { opacity: .4; }
+  .coach-empty { align-self: stretch; text-align: center; color: var(--muted); font-size: 13.5px; line-height: 1.9; padding: 30px 16px; }
+  .coach-empty b { color: var(--accent2); }
+
+  /* ===== 设置浮层 ===== */
+  #settingsSheet { position: fixed; inset: 0; z-index: 50; display: none; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
+  #settingsSheet.open { display: flex; align-items: flex-end; }
+  .settings-card {
+    width: 100%; background: var(--bg); border-top: 1px solid #2a2a38;
+    border-radius: 18px 18px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 86dvh; overflow-y: auto;
+  }
+  .settings-card h3 { font-size: 18px; margin-bottom: 14px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  .field input {
+    width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px;
+    background: var(--card); border: 1px solid #2a2a38; color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  .field .hint { font-size: 11.5px; color: #6d6d7c; margin-top: 5px; line-height: 1.55; }
+  .settings-row { display: flex; gap: 8px; }
+  .settings-row .btn { flex: 1; }
+  .test-result { font-size: 12.5px; margin: 8px 0 0; min-height: 18px; }
+  .test-result.ok { color: var(--ok); }
+  .test-result.err { color: var(--bad); }
+
+  /* ===== Quiz page ===== */
+  #quiz { height: 100%; display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top) + 20px) 20px 20px; }
+  .quiz-head { margin-bottom: 16px; }
+  .quiz-head h2 { font-size: 20px; margin-bottom: 4px; }
+  .quiz-head .sub { font-size: 12px; color: var(--muted); }
+  .pill-row { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 6px; }
+  .score-pill { background: #22222e; padding: 6px 12px; border-radius: 14px; font-size: 13px; }
+  .progress { height: 4px; background: #2a2a38; border-radius: 2px; margin: 14px 0 20px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--accent2); border-radius: 2px; transition: width .3s; }
+
+  .q-card { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 18px; }
+  .opt {
+    background: var(--card); border: 1.5px solid #262633; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 10px; font-size: 15px; line-height: 1.5;
+    cursor: pointer; display: flex; gap: 10px; transition: all .15s;
+  }
+  .opt .key { color: var(--muted); font-weight: 700; flex-shrink: 0; }
+  .opt.selected { border-color: var(--accent2); background: #1a2530; }
+  .opt.correct { border-color: var(--ok); background: #14251b; }
+  .opt.wrong { border-color: var(--bad); background: #2a1717; }
+  .explain {
+    margin-top: 6px; padding: 12px 14px; border-radius: 10px; font-size: 13.5px;
+    line-height: 1.6; background: #1c1c28; color: #c9c9d6; border-left: 3px solid var(--accent2);
+    display: none;
+  }
+  .btn {
+    margin-top: 14px; padding: 14px; border-radius: 12px; border: none;
+    background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; width: 100%;
+  }
+  .btn:disabled { opacity: .35; }
+  .btn.ghost { background: transparent; border: 1.5px solid #2e2e3c; color: var(--muted); }
+  .btn.fav-on { color: #ffd166; border-color: #4a3b12; background: #221d10; }
+  .final { text-align: center; padding-top: 40px; }
+  .final .big { font-size: 48px; font-weight: 800; color: var(--accent2); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ Page 1: Feed ============ -->
+  <div class="page active" id="page-feed">
+    <button id="soundToggle" title="语音播放开关"></button>
+    <div id="chipBar"></div>
+    <div id="feed"></div>
+  </div>
+
+  <!-- ============ Page 2: Podcast ============ -->
+  <div class="page" id="page-podcast">
+    <div id="podList"></div>
+    <div id="podArticle"></div>
+  </div>
+
+  <!-- ============ Page 3: Quiz ============ -->
+  <div class="page" id="page-quiz">
+    <div id="quiz">
+      <div class="quiz-head">
+        <h2>AI产品经理 · 概念刷题</h2>
+        <div class="progress"><i id="quizProg"></i></div>
+      </div>
+      <div class="q-card" id="qCard"></div>
+    </div>
+  </div>
+
+  <!-- ============ Page 4: Coach (AI 教练) ============ -->
+  <div class="page" id="page-coach">
+    <div class="coach-head">
+      <h2>🤖 AI 面试教练</h2>
+      <button class="icon-btn" id="coachSettings">⚙️设置</button>
+      <button class="icon-btn" id="coachClear">清空</button>
+    </div>
+    <div id="chatLog"></div>
+    <div class="coach-quick">
+      <button class="quick-btn" id="quickRound">🎲 随机抽查</button>
+      <button class="quick-btn" id="quickMore">再来 10 题</button>
+    </div>
+    <div class="coach-input">
+      <textarea id="coachInput" rows="1" placeholder="和教练对话，比如「考考我薄弱点」"></textarea>
+      <button id="coachSend">发送</button>
+    </div>
+  </div>
+
+  <!-- ============ 设置浮层 ============ -->
+  <div id="settingsSheet">
+    <div class="settings-card">
+      <h3>大模型接入设置</h3>
+      <div class="field">
+        <label>API Base URL</label>
+        <input id="setBase" placeholder="https://api.openai.com/v1">
+        <div class="hint">智谱 GLM：https://open.bigmodel.cn/api/paas/v4 ｜ DeepSeek：https://api.deepseek.com ｜ OpenRouter：https://openrouter.ai/api/v1 ｜ 本地 Ollama：http://localhost:11434/v1</div>
+      </div>
+      <div class="field">
+        <label>模型名</label>
+        <input id="setModel" placeholder="gpt-4o-mini">
+        <div class="hint">GLM 用 glm-4.6 / glm-4.5-air；DeepSeek 用 deepseek-chat；需支持 function calling</div>
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input id="setKey" type="password" placeholder="sk-...">
+        <div class="hint">仅存本机 localStorage，用于浏览器直连调用。请勿在公共设备留存。</div>
+      </div>
+      <div class="settings-row">
+        <button class="btn" id="setTest">测试连接</button>
+        <button class="btn ghost" id="setSave">保存</button>
+      </div>
+      <p class="test-result" id="testResult"></p>
+    </div>
+  </div>
+
+  <!-- ============ 播客迷你播放器（全局悬浮） ============ -->
+  <div id="playerSheet"></div>
+
+  <!-- ============ Tab bar ============ -->
+  <div id="tabbar">
+    <div class="tab active" data-page="feed"><span class="icon">🎧</span>首页</div>
+    <div class="tab" data-page="podcast"><span class="icon">🎙️</span>播客</div>
+    <div class="tab" data-page="quiz"><span class="icon">📝</span>刷题</div>
+    <div class="tab" data-page="coach"><span class="icon">🤖</span>教练</div>
+  </div>
+</div>
+
+<script>
+/* localStorage 安全封装（file:// 下可能被禁用，做兜底） */
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* =========================================================
+   数据：2026 年 AI 产品经理高频面试题与答案（公开资料整理）
+   ========================================================= */
+const FEED_DATA = [
+  {
+    tag: "AI客服 · 幻觉治理",
+    q: "如何设计 AI 客服的幻觉防护体系？",
+    a: `<p>2026 年行业共识：单一大模型垂直领域幻觉率 12–18%，防护必须是<b>多层金字塔</b>，而不是赌单一环节：</p>
+        <ul>
+          <li><b>知识约束层</b>：RAG + 知识库白名单，回答必须可溯源；</li>
+          <li><b>生成约束层</b>：价格、政策、承诺类字段走模板抽取，禁止自由生成；</li>
+          <li><b>工具权限层</b>：涉及资金/订单的操作分级授权、参数二次校验、高危操作人工确认；</li>
+          <li><b>兜底层</b>：置信度阈值触发转人工。</li>
+        </ul>
+        <p>关键认知：风险已从「答错话」升级为「做错事」（错误退款、错误下单），错误成本决定防护层级。</p>`
+  },
+  {
+    tag: "AI客服 · 人机协同",
+    q: "containment rate 和 CSAT 冲突时怎么权衡？",
+    a: `<p>这是 AI 客服 PM 的核心跷跷板题。答法分三步：</p>
+        <ul>
+          <li><b>指标联看</b>：containment rate 不能单独看，必须与 CSAT、一次解决率（FCR）、<b>重复进线率</b>联看——「假装解决」会被重复进线率出卖；</li>
+          <li><b>转接触发器三类</b>：用户显式要求 / 情绪检测（愤怒、重复提问）/ 任务难度路由；</li>
+          <li><b>硬约束</b>：2026 年 9 月 AI 客服新国标要求——用户明确要求或 AI 连续答偏时必须直接转真人，且上下文完整随行，不许让用户复述。</li>
+        </ul>`
+  },
+  {
+    tag: "ToB 交付",
+    q: "为什么说知识库运营比模型选型更关键？",
+    a: `<p>业内共识原话：「模型选错可换，知识库没运营好，再强的模型也答非所问。」</p>
+        <ul>
+          <li>知识生命周期四段：<b>采集 → 结构化 → 质量治理 → 反馈闭环</b>；</li>
+          <li>第一指标是<b>未命中率（unmatched query）</b>，不是模型指标；</li>
+          <li>badcase 要自动回流成知识工单，形成飞轮；</li>
+          <li>冷启动策略：高频 Top 100 意图人工精标，按流量分布优先补知识。</li>
+        </ul>`
+  },
+  {
+    tag: "数据驱动",
+    q: "如何为 AI 产品搭建评估（evals）体系？",
+    a: `<p>三层指标金字塔，面试必背：</p>
+        <ul>
+          <li><b>模型层</b>：意图识别准确率、答案忠实度、工具调用正确率——golden set + LLM-as-judge，进 CI/CD 拦截回归；</li>
+          <li><b>交互层</b>：转人工率、澄清轮次、会话完成率、重复进线率；</li>
+          <li><b>业务层</b>：FCR、CSAT、转化率——业务指标才是汇报语言。</li>
+        </ul>
+        <p>LLM-as-judge 的可信保障：人工标注对齐 + 抽样人审 + judge 模型 ensemble。</p>`
+  },
+  {
+    tag: "Text-to-SQL",
+    q: "Text-to-SQL 产品的核心设计要点是什么？",
+    a: `<p>2026 年共识：裸 text-to-SQL 在企业真实 schema 上有「准确率悬崖」，<b>语义层 + 治理</b>才是生产级出路（dbt 数据：裸方案约 32.7%–64.5%，语义层方案 95%+，但那是系统能力不是模型能力）。</p>
+        <ul>
+          <li><b>语义层优先</b>：指标口径、维度、术语表人工维护，模型在受约束空间生成；</li>
+          <li><b>歧义显式化</b>：宁可多问一句，不可静默猜错；</li>
+          <li><b>可验证</b>：展示 SQL、数据血缘、干跑校验、结果健全性检查；</li>
+          <li><b>权限与成本</b>：行级列级权限注入生成阶段，查询代价预估 + 熔断；</li>
+          <li><b>用户分层</b>：分析师看 SQL，业务看答案，管理层看报表。</li>
+        </ul>`
+  },
+  {
+    tag: "商业模式",
+    q: "AI 客服的成本账和定价模式怎么设计？",
+    a: `<ul>
+        <li>现实是<b>结构性降本</b>：AI 吃掉 80% 高频问题，20% 复杂纠纷仍需高阶坐席——总人力降了，单人成本反而上升；</li>
+        <li>客户 ROI =（人力节省 + 转化增量 + 培训缩短）−（软件费 + token 成本 + 知识运营人力）；</li>
+        <li>定价陷阱：按坐席收费会被 AI 自己干塌（坐席少了收入就跌），行业正转向<b>按 resolution/会话量</b>计价。</li>
+      </ul>`
+  },
+  {
+    tag: "AI销售",
+    q: "AI SDR（AI 销售开发）产品的瓶颈和对策是什么？",
+    a: `<p>2026 年 AI SDR 遭遇信任回调，瓶颈不在生成能力，在<b>渠道信任</b>：</p>
+        <ul>
+          <li>送达率崩塌（spam 判定）、决策者每天约 10 个连接请求已免疫、内容相关性差引发品牌诉讼风险，有效性「半衰期」约 18 个月；</li>
+          <li>对策：账号健康度管理、意图数据降噪、research-first 超个性化、发送前相关性打分闸门；</li>
+          <li>北极星从「发送量」改为<b>「每千封产生的有效对话」</b>，并对品牌风险定价。</li>
+        </ul>`
+  },
+  {
+    tag: "B端数据",
+    q: "CRM 数据脏导致 AI 销售工具没人用，怎么破？",
+    a: `<p>脏数据 → AI 建议不准 → 销售弃用 → 数据更脏，是典型死循环。最优雅的破局点：</p>
+        <ul>
+          <li><b>让 agent 自动写回 CRM</b>（会话纪要、字段更新），把记录成本降为零，数据质量自然改善；</li>
+          <li>置信度低的字段标注来源，不假装确定；</li>
+          <li>adoption 设计：嵌入销售现有工作流（邮件/CRM 内嵌），先做帮他省事的 copilot，再谈替代。</li>
+        </ul>`
+  },
+  {
+    tag: "合规",
+    q: "2026 年 AI 客服新国标对产品设计有什么影响？",
+    a: `<ul>
+        <li>企业对 AI 答复<b>承担法律责任</b>，不得以「AI 不代表公司立场」推脱；</li>
+        <li>人工入口不得层层隐藏；用户明确要求或 AI 连续答偏必须直接转真人；</li>
+        <li>人机切换必须携带完整上下文；</li>
+        <li>产品化机会：承诺话术白名单、全链路留痕审计、高危动作双人复核——<b>合规能力本身是 ToB 采购加分项</b>。</li>
+      </ul>`
+  },
+  {
+    tag: "自动化边界",
+    q: "copilot 和 agent 怎么选？什么时候做全自动化？",
+    a: `<p>按任务而非按岗位划分自动化层级，评估公式：<b>错误成本 × 可验证性</b>。</p>
+        <ul>
+          <li>错误成本低、结果可验证 → 直接 agent（如内部数据查询）；</li>
+          <li>错误成本高、难验证 → 先 copilot（如对外承诺、退款）；</li>
+          <li>信任阶梯：shadow（旁听建议）→ copilot（人确认执行）→ agent（受控自主）；</li>
+          <li>金句：能完成 100% 工作的 AI 和只完成 90% 的是两个物种——PM 的任务是推过这条线，而不是在 90% 处搭补丁。</li>
+        </ul>`
+  },
+  {
+    tag: "前沿认知",
+    q: "递归自我改进（RSI）的主要瓶颈是什么？",
+    a: `<p>2026 年 9 月 Dwarkesh 热门辩论（Schulman 等）的结论框架：</p>
+        <ul>
+          <li>四大瓶颈：<b>泛化极限、目标设定难题、范式极限、验证瓶颈</b>——都不是算力问题；</li>
+          <li>一线现实：在真实用户数据上持续微调会<b>灾难性遗忘</b>，实验室只能从零重训；</li>
+          <li>后训练 RL 传递的信息比特少，能力一旦出现在 API 输出里就易被蒸馏——所以前沿模型护城河薄，<b>交付速度本身是壁垒</b>；</li>
+          <li>共识：自主工作者 1–3 年落地，无界智能爆炸被降温。</li>
+        </ul>`
+  },
+  {
+    tag: "从0到1",
+    q: "热门 AI 产品如何做到 7 周从代码到发布？（Grok Bot 复盘）",
+    a: `<p>Lenny's Podcast 2026 年 9 月爆款复盘的七个可落地实践：</p>
+        <ul>
+          <li><b>Unshipping</b>：上线前主动删 UI 脚手架，逼产品跨过 90%→100% 委托线；</li>
+          <li>亲手一对一引导前 300 个种子用户，捕捉涌现式工作流；</li>
+          <li><b>Agent 入职法</b>：像新员工一样设计权限、首任务、验收、汇报；</li>
+          <li>护城河是跑出来的不是画出来的：每 6 个月「从零重做」检查点；</li>
+          <li>小团队刻意隔离：发布节奏、基础设施、KPI 三项豁免。</li>
+        </ul>`
+  },
+  {
+    tag: "Agent · harness 厚薄",
+    q: "AI 产品的 harness 该做厚还是做薄？",
+    a: `<p>harness 是套在模型外的工程层。厚度按「<b>错误成本 × 可验证性</b>」切，不是按产品切：</p>
+        <ul>
+          <li><b>厚</b>：高错误成本、难验证、强监管、模型没跨阈值——权限/校验/白名单/审计/语义层；</li>
+          <li><b>薄</b>：低成本、可验证、有人兜底、模型已过 90%→100% 线——只剩验证回路。</li>
+        </ul>
+        <p>每层问「模型再强一档它还在不在」：该在的是资产（权限/审计），不在的是负债（能力补丁），排期删。</p>`
+  },
+  {
+    tag: "AI · 护城河",
+    q: "AI 产品的护城河到底在哪？",
+    a: `<p>后训练 RL 传递的有效信息极少，能力一旦出现在 API 输出里就能被蒸馏——<b>模型本身无壁垒</b>。真正的壁垒在：</p>
+        <ul>
+          <li>算力、分发、人才；</li>
+          <li><b>交付速度本身</b>（Grok Bot：靠高频发布发现护城河）；</li>
+          <li>专有真实数据 + 工作流嵌入。</li>
+        </ul>
+        <p>应用层创业别赌模型能力，赌分发与工作流。</p>`
+  },
+  {
+    tag: "PMF · 信号",
+    q: "怎么判断 AI 产品有没有 PMF？",
+    a: `<p>AI 产品 PMF 信号和传统产品不同：</p>
+        <ul>
+          <li><b>涌现式工作流</b>：用户把 Agent 用在了你没想到的地方——那是 PMF 的信号源；</li>
+          <li>看<b>委托率</b>（可完整委托的任务占比）而非功能使用率；</li>
+          <li>留存与<b>重复进线率</b>联看——「假装解决」会被重复进线率出卖。</li>
+        </ul>
+        <p>demo 惊艳 ≠ PMF；用户自主发明用法才是。</p>`
+  },
+  {
+    tag: "Agent · 工具设计",
+    q: "给 AI Agent 设计工具有哪些原则？",
+    a: `<p>工具是 agent 的能力边界，设计原则：</p>
+        <ul>
+          <li>描述清晰（模型靠描述决定何时用）、返回<b>结构化 JSON</b>；</li>
+          <li>权限分级、高危动作人工确认；</li>
+          <li><b>可验证</b>（有明确对错，模型能自查）；</li>
+          <li>数量克制——工具越多，模型选错率越高。</li>
+        </ul>`
+  },
+  {
+    tag: "evals · 上线闸门",
+    q: "AI 功能上线前该过哪些 evals 闸门？",
+    a: `<p>三层指标金字塔 + CI 拦截：</p>
+        <ul>
+          <li><b>模型层</b>：意图准确率、答案忠实度、工具调用正确率——golden set + LLM-as-judge，进 CI/CD 拦截回归；</li>
+          <li><b>交互层</b>：转人工率、澄清轮次、重复进线率；</li>
+          <li><b>业务层</b>：FCR、CSAT、转化。</li>
+        </ul>
+        <p>线上灰度看重复进线率；不过闸门不上线。</p>`
+  },
+  {
+    tag: "RAG · 选型",
+    q: "RAG 和微调什么时候用哪个？",
+    a: `<p>一句口诀：<b>知识频繁变化用 RAG，固定风格/格式/领域行为用微调</b>。</p>
+        <ul>
+          <li>RAG：改库即生效，答案可溯源，适合企业知识库；</li>
+          <li>微调：塑造稳定语气、输出格式、领域行为，不适合管知识更新；</li>
+          <li>二者常组合：微调定风格 + RAG 给知识。</li>
+        </ul>`
+  },
+  {
+    tag: "冷启动",
+    q: "AI 产品冷启动阶段最该做什么？",
+    a: `<ul>
+          <li>一对一引导前 <b>50–300 个种子用户</b>，捕捉涌现式工作流（用户用在没想到处）；</li>
+          <li>高频 Top 100 意图人工精标，按流量分布优先补知识；</li>
+          <li>先做帮他省事的 <b>copilot</b>，再谈替代；</li>
+          <li>小团队刻意隔离：发布节奏、基础设施、KPI 三项豁免。</li>
+        </ul>`
+  },
+  {
+    tag: "上线 · checklist",
+    q: "AI 产品上线前的一页 checklist？",
+    a: `<ul>
+          <li><b>脚手架审计</b>：逐个问「模型再强一档这控件还在吗」，不在的排期删；</li>
+          <li><b>evals 闸门</b>：golden set 进 CI，忠实度/工具调用拦截回归；</li>
+          <li><b>转人工触发器</b>：显式要求/情绪检测/任务难度，上下文随行；</li>
+          <li><b>留痕审计</b> + 高危操作双人复核；</li>
+          <li>成本/token 预估 + 熔断；灰度计划与重复进线率监控。</li>
+        </ul>`
+  },
+  {
+    tag: "AI客服 · 幻觉治理",
+    q: "AI客服Agent的幻觉与安全风险怎么治理？",
+    a: `<ul><li><b>用纵深防御分层设防</b>：内容层挂接帮助文档与政策做grounding、规则层用自然语言政策约束、监督层用独立模型实时审计并可阻断/改写/纠偏、确定性护栏在未认证前干脆不开放改账户等工具。</li><li><b>核心理念是"用AI守护AI"</b>：每层失效模式不同（内容可被注入、规则会被注意力稀释、监督模型有同样局限），组合起来才扛得住对抗攻击。</li><li><b>护栏要业务化表达</b>：退款、欺诈报告等判断类问题用上下文规则，不暴露完整支付信息等红线用硬编码。</li><li>上线后持续第三方红队测试与监控，Sierra明确说"上季度稳健的agent今天未必稳健"。</li></ul>`,
+    src: "https://sierra.ai/blog/defense-in-depth-in-the-age-of-agents"
+  },
+  {
+    tag: "AI客服 · 发布治理",
+    q: "AI客服的每次变更如何安全灰度上线？",
+    a: `<ul><li>Agent Checks相当于agent的linter，按严重级提示缺工具、指令冲突、敏感查询缺认证等问题，并给出可就地应用的修复建议。</li><li>用模拟会话（Simulations）做自动化质量门禁，要求通过才能进生产。</li><li><b>变更走Merge审批</b>：设Reviewer角色（CX负责人、合规干系人）逐行diff审查、留评论、可打回。</li><li>分流灰度（split traffic）先对小部分流量验证再扩量，release是不可变快照，异常可即时回滚。</li></ul>`,
+    src: "https://sierra.ai/blog/release-governance-guardrails-for-agents-at-scale"
+  },
+  {
+    tag: "evals · 上线闸门",
+    q: "为什么AI产品上线前必须先过evals？",
+    a: `<ul><li>evals是衡量AI系统质量的方法，像回归测试一样明确定义"什么算好"，而不只是延迟或通过率检查。</li><li><b>三种手段各有取舍</b>：人工评估贴近用户但反馈稀疏昂贵、代码评估便宜快但对主观任务信号差、LLM-as-judge可扩展。</li><li><b>Aman Khan的原话</b>："你不应让一个AI产品在没有通过经过深思熟虑的evals之前上线"。</li><li><b>常测维度</b>：幻觉（是否grounded在给定上下文）、毒性/语气、端到端正确率、检索相关性；工具推荐开源的Phoenix和Ragas。</li></ul>`,
+    src: "https://www.lennysnewsletter.com/p/beyond-vibe-checks-a-pms-complete"
+  },
+  {
+    tag: "evals · LLM裁判",
+    q: "如何设计LLM-as-judge评估器？",
+    a: `<ul><li><b>四段式公式</b>：Role（给裁判定角色）+ Context（待评数据）+ Goal（明确写出成功与失败长什么样）+ Terminology（把"毒性"等术语锚定到你的业务语境）。</li><li>上线前要用人工标注样本验证裁判本身的可信度。</li><li>裁判结果是概率性的，要靠数量取胜，可用置信度分数或多个LLM裁判组成panel提高可靠性。</li><li><b>经验法则</b>："如果人类能给某个输出打分，LLM裁判也能打"。</li></ul>`,
+    src: "https://www.lennysnewsletter.com/p/beyond-vibe-checks-a-pms-complete"
+  },
+  {
+    tag: "evals · 人机结合",
+    q: "模型效果评估靠人工还是机器？",
+    a: `<ul><li>机器评估规模大、速度快、成本低，适合跑客观指标的日常监控。</li><li>人工评估更精准灵活，是校准自动指标的"金标准"。</li><li><b>推荐组合</b>：日常用自动评估持续监控，定期做小规模人工评估来校准。</li></ul>`,
+    src: "https://blog.csdn.net/weixin_55617272/article/details/151627374"
+  },
+  {
+    tag: "evals · 指标设计",
+    q: "生成式AI产品的效果指标怎么定？",
+    a: `<ul><li><b>四个维度</b>：生成质量（相关性、安全性）、性能（延迟、错误率）、用户体验（任务完成率、NPS）、业务指标。</li><li>定阈值要综合人类可感知的延迟阈值、技术成本、业务场景差异、竞品水平。</li><li>用A/B测试验证指标取舍，例如对比P90小于800ms的实验组与对照组的留存差异。</li><li>指标体系要随迭代持续review优化，结合业务目标与业界基准、人工评估校准。</li></ul>`,
+    src: "https://blog.csdn.net/weixin_55617272/article/details/151627374"
+  },
+  {
+    tag: "evals · 离线指标",
+    q: "模型上线前的离线评估看哪些指标？",
+    a: `<ul><li><b>三类指标</b>：统计性（覆盖度、分布）、性能（分类看混淆矩阵、准确率、精确率/召回率、F1、AUC；回归看MAE/MSE/RMSE/R方）、稳定性（PSI）。</li><li>AUC取值0.5到1，0.5等于随机猜测，越接近1性能越好。</li><li>做跨时间OOT测试（测试集在训练期之后）看模型的时间稳定性。</li><li><b>上线后用回溯测试</b>：用历史真实数据评估模型在当时的表现。</li></ul>`,
+    src: "https://blog.csdn.net/m0_65555479/article/details/147351078"
+  },
+  {
+    tag: "RAG · 选型",
+    q: "RAG和微调各自适合什么场景？",
+    a: `<ul><li>知识需要新鲜、数据私有且动态更新时选RAG：它把LLM接入企业最新的私有数据源。</li><li><b>领域术语深、任务专属时选微调</b>："微调后的模型在其领域数据上通常优于对应基座模型"。</li><li><b>成本视角</b>：RAG靠chunking只把最相关片段放进prompt省钱，微调要密集GPU，PEFT参数高效微调可降低硬件门槛。</li><li><b>本质区别</b>：RAG不改模型参数只外挂知识，微调直接调整模型内部参数和embeddings。</li></ul>`,
+    src: "https://www.ibm.com/think/topics/rag-vs-fine-tuning"
+  },
+  {
+    tag: "Text-to-SQL · 评测",
+    q: "Text-to-SQL产品如何做执行级评测？",
+    a: `<ul><li><b>用执行准确率而非字符串匹配</b>：同时执行生成SQL与gold SQL，对结果集做确定性判定。</li><li><b>容忍多正确答案</b>：gold查询用花括号展开成所有可接受的列组合，命中任一变体即算正确。</li><li><b>两级比对</b>：先做dataframe内容精确匹配，再放宽为子集匹配，容忍列别名、多余列、行序不同。</li><li><b>不用GPT-4当裁判</b>：一次全量评测成本要三位数美元、有模型漂移、不可复现。</li><li><b>防Goodhart定律</b>：官方明说该基准不是权威榜单，要看与你业务的关联度。</li></ul>`,
+    src: "https://defog.ai/blog/open-sourcing-sqleval"
+  },
+  {
+    tag: "Agent · 边界",
+    q: "什么时候该用Agent而不是Workflow？",
+    a: `<ul><li><b>定义区分</b>：workflow是LLM和工具通过预定义代码路径编排，agent是LLM动态指挥自己的流程和工具使用。</li><li>任务能干净拆成固定子任务用workflow；开放式、无法预测所需步数的问题才用agent。</li><li><b>先找最简单的方案</b>："对单次LLM调用做检索和上下文示例优化通常就够了"。</li><li>Agent系统用延迟和成本换更好的任务表现，还有错误累积的复合风险，要在沙箱环境里大量测试。</li></ul>`,
+    src: "https://www.anthropic.com/research/building-effective-agents"
+  },
+  {
+    tag: "Agent · 设计模式",
+    q: "Anthropic总结了哪些agent设计模式？",
+    a: `<ul><li><b>五大workflow模式</b>：提示链（分步骤依次传递输出）、路由（分类后转专门处理）、并行化、编排者-工作者、评估者-优化者（一个生成另一个给反馈循环改进）。</li><li><b>并行化有两种形态</b>：Sectioning拆独立子任务并行跑，Voting同一任务跑多次取多样输出。</li><li><b>编排者-工作者与并行化的关键区别</b>：子任务不预设，由中央LLM动态决定拆解。</li><li><b>选型判断</b>：能清晰分解的固定子任务用提示链，人类能明确表述反馈来改进输出的场景用评估者-优化者。</li></ul>`,
+    src: "https://www.anthropic.com/research/building-effective-agents"
+  },
+  {
+    tag: "Agent · 工具设计",
+    q: "agent的工具接口（ACI）该怎么设计？",
+    a: `<ul><li><b>像投入HCI一样投入ACI</b>：Anthropic在SWE-bench上"花在优化工具上的时间比优化总体prompt还多"。</li><li>参数说明按"给初级开发者写一份出色的docstring"的标准来写。</li><li><b>做poka-yoke防呆</b>：发现模型常犯相对路径错误后，把工具改成必须传绝对文件路径。</li><li>给模型足够的token在写代码前先"思考"，避免把自己写进死角。</li></ul>`,
+    src: "https://www.anthropic.com/research/building-effective-agents"
+  },
+  {
+    tag: "Agent · 协议生态",
+    q: "MCP为什么能成为agent连接标准？",
+    a: `<ul><li>它把爆炸的MxN问题转成可解的M+N：应用和数据源不再两两对接，都接一个协议。</li><li><b>胜因排序</b>：对成熟想法（LSP协议）做AI原生重设计、有不会锁用户的大厂背书、Anthropic的开发者品牌、用Claude Desktop加19个参考服务器完全dogfooding。</li><li><b>关键洞察是社会学而非技术</b>："任何网络的第一特征是已经在网上的人"。</li><li>协议区分Tools（模型控制）、Resources（应用控制）、Prompts（用户控制）。</li></ul>`,
+    src: "https://www.latent.space/p/why-mcp-won"
+  },
+  {
+    tag: "商业模式 · 定价",
+    q: "AI产品的定价模式应该怎么选？",
+    a: `<ul><li>Metronome盘点50多个AI定价模型后："单一模式正在变成少数，混合才是常态"，用订阅保可预测性、用量元素捕获弹性价值。</li><li><b>Credits有三种功能</b>：算力代理（映射推理/GPU时间）、抽象价值包（统一余额消费不同成本动作）、高级功能闸门（配额计费）。</li><li>消费者与API双轨定价（ChatGPT模式：订阅+封顶 vs token计费+预付credit），不要强行统一。</li><li><b>简化测试</b>："如果客户不查文档就说不清一个credit能买到什么，就该简化"。</li></ul>`,
+    src: "https://www.metronome.com/blog/2026-trends-from-cataloging-50-ai-pricing-models"
+  },
+  {
+    tag: "商业模式 · 按结果计费",
+    q: "按结果付费的定价怎么落地？",
+    a: `<ul><li>HubSpot从"每会话1美元、不管是否解决"改为只对agent自主解决的对话扣credit：72小时内无人工接管、无转接、无负反馈才计费。</li><li><b>三层结构</b>：订阅打底+共享credit池+结果触发（解决的会话、合格的线索）。</li><li><b>只对可测量的微观结果计费</b>："把定价绑到宏观结果会引入太多外部变量"。</li><li><b>门槛在数据资产</b>：HubSpot靠Smart CRM的数据护城河才敢兜底失败。</li></ul>`,
+    src: "https://www.metronome.com/blog/pricing-model-spotlight-inside-hubspots-move-to-outcome-based-ai-credits"
+  },
+  {
+    tag: "商业模式 · 卖工作",
+    q: "AI商业化为什么从卖席位转向卖工作？",
+    a: `<ul><li>Sequoia称之为service-as-a-software："软件公司把劳动变成软件"，目标市场是数万亿美元的服务市场而非约3500亿美元的SaaS。</li><li><b>计价单位从每席位转向每结果</b>：Sierra按解决的客户问题收费。</li><li>落地节奏是先做copilot在人在环里攒信任，再滑向autopilot。</li><li><b>GTM反转</b>：AI公司自上而下、用高接触高信任的交付模式，而不是云时代的自下而上PLG。</li></ul>`,
+    src: "https://www.sequoiacap.com/article/generative-ais-act-o1/"
+  },
+  {
+    tag: "AI · 护城河",
+    q: "生成式AI现在有系统性护城河吗？",
+    a: `<ul><li><b>a16z的结论</b>："There don't appear, today, to be any systemic moats in generative AI"——应用、模型、基础设施三层都缺持久结构性差异化。</li><li><b>应用层痛点</b>：都用相似模型导致产品差异化弱，推理成本把毛利率压到50-60%（个别达90%）。</li><li><b>现存优势来源</b>：高资本要求、专有的产品交互数据、稀缺AI人才，以及"产品即模型"式垂直整合。</li><li>警惕毕业风险（graduation risk）：大客户转向自研AI会抽走平台层收入。</li></ul>`,
+    src: "https://a16z.com/who-owns-the-generative-ai-platform/"
+  },
+  {
+    tag: "AI · 护城河",
+    q: "被说成套壳的应用如何建立持久价值？",
+    a: `<ul><li>Sequoia观察到被嘲"只是GPT-3套壳"的公司演化为认知架构（cognitive architectures）：多模型路由、向量/图数据库RAG、护栏、类人的工作流逻辑。</li><li><b>原话</b>：这被证明是"构建持久价值为数不多的可靠方法之一"。</li><li>模型层理性地"停在API"，应用层因此成为风投眼中最有意思的一层。</li><li><b>应用层还吃到定价红利</b>：GPT-4 token价格一年内下降98%。</li></ul>`,
+    src: "https://www.sequoiacap.com/article/generative-ais-act-o1/"
+  },
+  {
+    tag: "PMF · 信号",
+    q: "用什么指标量化产品市场契合度？",
+    a: `<ul><li><b>Sean Ellis测试</b>：问用户"如果不能再用这个产品你会怎么感觉"，统计回答"非常失望"的占比，基准线40%（Slack是51%）。</li><li>调研只覆盖近两周用过核心产品至少两次的用户，约40份回复就有方向性。</li><li><b>四问问卷</b>：失望程度/哪种人最受益/你获得的主要收益/我们如何改进。</li><li>Superhuman从22%做到58%：先按"非常失望"人群收窄目标市场，再用50/50路线图执行。</li></ul>`,
+    src: "https://review.firstround.com/how-superhuman-built-an-engine-to-find-product-market-fit/"
+  },
+  {
+    tag: "PMF · 路线图",
+    q: "冲PMF阶段的roadmap怎么排优先级？",
+    a: `<ul><li><b>黄金法则</b>："一半时间加倍投入用户已经热爱的，另一半解决阻碍用户的"——只做前者分数不会涨，只做后者会被竞品超越。</li><li>对"不会失望"的用户礼貌无视，他们的反馈会把roadmap带偏。</li><li>对"有些失望"用户按是否认可你的核心收益分流：不认可的忽略，认可的花时间挖阻碍点。</li><li>用HXC（高期待客户）画像校准直觉，按低成本/高影响优先排序。</li></ul>`,
+    src: "https://review.firstround.com/how-superhuman-built-an-engine-to-find-product-market-fit/"
+  },
+  {
+    tag: "从0到1",
+    q: "让你从0到1做一个AI产品会怎么做？",
+    a: `<ul><li><b>高频答题框架四层</b>：产品架构、功能设计、测评、资源层面。</li><li><b>全流程按</b>：需求背景→产品定义→技术预研→数据准备→模型构建→工程建设→效果评估展开。</li><li><b>心法</b>：AI产品是技术驱动型产品，用户未必说得清自己想要什么，PM要主动用AI技术改造现有流程。</li><li><b>准备好追问</b>：与算法工程师在架构/设计上有分歧怎么办、研发测试资源不足怎么办。</li></ul>`,
+    src: "https://blog.csdn.net/2401_84204207/article/details/144025882"
+  },
+  {
+    tag: "从0到1 · 原型",
+    q: "AI产品经理为什么要自己动手做原型？",
+    a: `<ul><li>把设计稿或PRD变成可点可用的demo只要几分钟：Colin Matthews搭一个可用的CRM"不到五分钟"，替代工程师数周时间。</li><li>在投入工程之前拿到客户真实反馈，"尽早把可交互样例放到客户手里"加速discovery。</li><li><b>工具三分法</b>：聊天机器人适合单页简单原型，Replit/Bolt/v0/Lovable适合多页多功能，Cursor/Copilot适合要上生产的人。</li><li><b>提示词技巧</b>：一次只改一处、对位置和外观"极度具体"、把设计截图贴进prompt。</li></ul>`,
+    src: "https://www.lennysnewsletter.com/p/a-guide-to-ai-prototyping-for-product"
+  },
+  {
+    tag: "Prompt · 工程",
+    q: "如何引导小白用户用好大模型？",
+    a: `<ul><li>降低恐惧用类比，提供填空式模板，展示好/坏Prompt的对比案例。</li><li>界面内置Prompt推荐功能，引导用户渐进式学习。</li><li><b>基本原则</b>：清晰具体、赋予角色、结构化输入、思维链逐步拆解、迭代优化。</li><li>可引用CRISPE、BROKE等框架，核心都是给足上下文与约束。</li></ul>`,
+    src: "https://blog.csdn.net/weixin_55617272/article/details/151627374"
+  },
+  {
+    tag: "微调 · PM职责",
+    q: "微调项目中产品经理的职责是什么？",
+    a: `<ul><li><b>需求分析</b>：协同业务和技术团队明确场景、用户群体、性能指标。</li><li><b>数据准备</b>：组织收集、清洗、标注任务相关的问答数据集。</li><li>参与模型选型与超参调优（学习率、批次大小、迭代次数），评估用准确率、召回率、F1分数。</li><li><b>落地迭代</b>：集成上线、跟踪用户反馈持续优化；成功关键=高质量且与任务紧密相关的数据集+合适的预训练基座+防过拟合的正则化。</li></ul>`,
+    src: "https://blog.csdn.net/2401_85375151/article/details/142965746"
+  },
+  {
+    tag: "数据治理",
+    q: "如何确保训练数据的质量与有效性？",
+    a: `<ul><li><b>收集阶段</b>：与数据团队定标准、定范围，核实数据来源可靠性。</li><li><b>清洗预处理</b>：去重、去异常、去无关特征，做变换和归一化。</li><li><b>标注验证</b>：统一标注规范、专业标注团队、交叉验证，发现问题及时修正。</li><li><b>持续迭代</b>：训练过程中定期评估模型性能，反向调整数据集。</li></ul>`,
+    src: "https://blog.csdn.net/2401_85375151/article/details/142965746"
+  },
+  {
+    tag: "合规",
+    q: "生成式AI产品境内上线有哪些合规义务？",
+    a: `<ul><li><b>适用范围</b>：利用生成式AI向境内公众提供文本、图片、音频、视频等内容的服务，仅自研自用不适用。</li><li>具有舆论属性或社会动员能力的须开展安全评估，并履行算法备案及变更、注销备案手续。</li><li><b>训练数据要求</b>：合法来源、不侵犯知识产权、涉及个人信息须取得个人同意，提高数据的真实性、准确性、客观性、多样性。</li><li>按《互联网信息服务深度合成管理规定》对生成内容进行标识；防未成年人沉迷。</li><li>发现违法内容须停止生成传输、消除并整改上报；违规可被警告、责令暂停提供服务。</li></ul>`,
+    src: "https://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm"
+  },
+  {
+    tag: "模型 · 认知",
+    q: "面试问最近关注哪些大模型怎么答？",
+    a: `<ul><li><b>选1-2个说得出架构创新的</b>：如DeepSeek-V2采用MoE，创新在"把FFN层专家化、而Attention层保持共享"，激活参数仅21B、性能接近Llama 3-70B，推理成本更低。</li><li>展示"性能-成本-场景"的产品视角，而不是报模型名菜。</li><li>可以顺带提读过的论文，如《Attention Is All You Need》：纯基于自注意力、更好捕捉长程依赖、支持并行训练。</li><li>落到对自家业务技术选型的启发，体现产品判断而非知识背诵。</li></ul>`,
+    src: "https://blog.csdn.net/weixin_55617272/article/details/151627374"
+  },
+  {
+    tag: "AI销售 · SDR",
+    q: "上AI SDR前必须先做好什么？",
+    a: `<ul><li>Jason Lemkin的结论是"No"：没有跑通的人工SDR motion就上AI SDR，是他见过的最常见错误。</li><li><b>核心逻辑</b>：AI会"无限规模地执行你的烂playbook"；"工具不重要，重要的是你怎么训练它"。</li><li><b>前置动作</b>：让最强人工SDR或创始人跑4-6周outbound，把话术、脚本、触达节奏文档化成训练数据，接入真实CRM数据。</li><li><b>指标参考</b>：SaaStr自身从每人每月285封提到3221封邮件且回复率持平或更好。</li><li><b>陷阱</b>：别做"纯冷测试"——会烧钱数月且无法归因；"先知道done长什么样，才能自动化它"。</li></ul>`,
+    src: "https://www.saastr.com/dear-saastr-should-i-use-an-ai-sdr-before-i-have-a-working-human-sdr-motion/"
+  },
+  {
+    tag: "AI销售 · 人机分工",
+    q: "AI SDR与人类销售如何分工？",
+    a: `<ul><li><b>AI接管速度与体量型工作</b>：小客群、冷线索、高频跟进；人类转向判断密集型工作：复杂组织导航和企业级关系。</li><li><b>部署节奏</b>：2-4周定ICP和信息，1-2周集成CRM，之后60-90天每天30-45分钟持续调优。</li><li>把AI当新员工入职训练（克隆最强人工SDR的打法），而不是买了软件就撒手。</li><li><b>Lemkin金句</b>："你必须理解什么算done，才能自动化它"。</li></ul>`,
+    src: "https://www.saastr.com/dear-saastr-should-i-use-an-ai-sdr-before-i-have-a-working-human-sdr-motion/"
+  },
+  {
+    tag: "AI · Product Sense",
+    q: "AI产品经理的产品直觉怎么练？",
+    a: `<ul><li>别停留在聊天界面，把Cursor等工具切到Agent模式："你会撞上工程师建AI应用时撞的同一堵墙"。</li><li><b>观察三件套</b>：读AI的推理过程、检查tool calls、盯着上下文窗口被填满；同一任务换多个模型跑，形成benchmark给不了的真观点。</li><li><b>新反射弧</b>：听到"我们的agent能做X吗"，先想"它需要哪些工具、模型调用工具的水平如何"。</li><li>前沿模型人人可得，差异化必然落在应用层；目标是"预判技术而不是追赶技术"。</li></ul>`,
+    src: "https://www.lennysnewsletter.com/p/how-to-build-ai-product-sense"
+  }
+];
+
+/* =========================================================
+   数据：概念选择题
+   ========================================================= */
+const QUIZ_DATA = [
+  { q: "RAG 的中文含义和核心作用是？",
+    opts: ["检索增强生成：先检索知识库再生成答案，减少幻觉", "强化对抗生成：一种对抗训练方法", "递归注意力机制：一种模型架构", "实时 API 网关：一种部署方案"],
+    ans: 0, exp: "RAG（Retrieval-Augmented Generation）让模型回答前先检索企业知识库，答案可溯源，是控制幻觉的第一层防护。" },
+  { q: "AI 客服中的 containment rate 指什么？",
+    opts: ["会话容纳率：系统并发承载能力", "AI 独立解决率：不转人工自行完成会话的占比", "用户留存率：次日再次进线的比例", "上下文保持率：多轮对话的记忆保持能力"],
+    ans: 1, exp: "containment rate = AI 不转人工独立完成会话的比例。注意不能单独看它冲高，需与 CSAT、FCR、重复进线率联看。" },
+  { q: "以下哪项是「幻觉（hallucination）」的准确定义？",
+    opts: ["模型训练速度过慢", "模型生成看似合理但事实错误的内容", "模型上下文窗口溢出", "模型推理成本过高"],
+    ans: 1, exp: "幻觉指模型自信地生成不符合事实或无依据的内容；在客服场景最大风险是「错误承诺」和「错误执行」（如错误退款）。" },
+  { q: "FCR 在客服指标体系中指什么？",
+    opts: ["首次联系解决率（First Contact Resolution）", "全渠道响应率", "流量转化率", "免费呼叫路由"],
+    ans: 0, exp: "FCR 衡量用户首次进线即解决问题的比例，是业务层核心指标，与 containment、CSAT 联看。" },
+  { q: "语义层（Semantic Layer）在 Text-to-SQL 产品中的作用是？",
+    opts: ["加速数据库索引", "统一指标口径、维度和业务术语，让模型在受约束空间生成 SQL", "加密数据传输", "压缩存储成本"],
+    ans: 1, exp: "语义层沉淀指标定义（如「销售额」是否含税）与 join 路径，是 text-to-SQL 从 demo 到生产的关键——2026 年语义层方案准确率可达 95%+。" },
+  { q: "copilot 与 agent 的本质区别是？",
+    opts: ["copilot 更便宜", "copilot 辅助人决策、人执行；agent 自主决策并执行任务", "copilot 只能用于编程", "agent 不需要模型"],
+    ans: 1, exp: "选择标准是「错误成本 × 可验证性」：高错误成本先 copilot，低错误成本可直接 agent。信任阶梯：shadow → copilot → agent。" },
+  { q: "LLM-as-judge 是什么？",
+    opts: ["用法律语言模型做合规审查", "用大模型自动评估另一个模型输出质量的方法", "让模型扮演法官角色扮演游戏", "模型自我训练的技术"],
+    ans: 1, exp: "LLM-as-judge 用强模型按评分标准自动评估输出，常配合 golden set 进 CI 拦截回归；可信保障靠人工对齐 + 抽样人审。" },
+  { q: "微调（fine-tuning）和 RAG 的典型选型场景是？",
+    opts: ["微调管知识更新，RAG管风格", "RAG 适合频繁变化的知识库；微调适合塑造固定风格、格式与领域行为", "两者完全等价可互换", "生产环境只能用微调"],
+    ans: 1, exp: "知识频繁变化用 RAG（改库即生效）；需要稳定的语气、输出格式、领域行为用微调。二者常组合使用。" },
+  { q: "RLHF 的全称是？",
+    opts: ["Reinforcement Learning from Human Feedback（人类反馈强化学习）", "Recursive Language Hidden Framework", "Real-time Learning for Human Factors", "Ranked Latent Feature Hashing"],
+    ans: 0, exp: "RLHF 通过人类偏好数据训练奖励模型再用 RL 优化，是 ChatGPT 后训练的核心技术，John Schulman 是实际操盘者。" },
+  { q: "「灾难性遗忘」指的是什么现象？",
+    opts: ["用户忘记密码频率过高", "模型在新数据上微调后，旧能力大幅退化", "数据库备份失败", "会话上下文丢失"],
+    ans: 1, exp: "生产中在真实用户轨迹上迭代微调，几百次更新后基础能力被抹掉——所以实验室宁愿从零重训，也让「持续在线自我进化」目前走不通。" },
+  { q: "模型「蒸馏（distillation）」对商业格局的含义是？",
+    opts: ["降低模型功耗", "能力一旦出现在公开输出里就容易被复制，前沿模型护城河薄", "提高模型精度", "压缩部署体积"],
+    ans: 1, exp: "后训练 RL 传递的有效信息少，一旦能力出现在 API 输出中便可蒸馏——所以壁垒在算力、分发、交付速度，而非模型本身。" },
+  { q: "转人工时「上下文随行」的产品要求是？",
+    opts: ["只需转接用户账号", "携带完整会话记录、客户画像与 AI 已做判断，坐席一键接续，不让用户复述", "重新开始新会话", "仅传递用户姓名"],
+    ans: 1, exp: "这是 2026 年 9 月新国标的硬性要求，也是「不让人重复」体验的硬指标——转人工设计的三类触发器：显式要求/情绪检测/任务难度路由。" },
+  { q: "AI 销售工具采用率低的第一原因是？",
+    opts: ["价格太贵", "CRM 数据脏导致 AI 建议不可信", "界面不好看", "缺少多语言支持"],
+    ans: 1, exp: "脏数据 → 建议不准 → 销售弃用 → 数据更脏的死循环；破局点是让 agent 自动写回 CRM，把记录成本降为零。" },
+  { q: "AI 客服产品的「未命中率（unmatched query）」衡量什么？",
+    opts: ["API 调用失败率", "用户问题没有命中任何知识库条目的比例，是知识运营第一指标", "营销邮件退信率", "坐席离线率"],
+    ans: 1, exp: "未命中率直接指向知识库覆盖缺口，是知识运营（而非模型）的核心指标，未命中问题应回流成知识补录工单。" },
+  { q: "按坐席数定价的 AI 客服产品面临什么商业风险？",
+    opts: ["没有风险", "AI 削减坐席后收入随之下降，行业正转向按 resolution/会话量计价", "只能卖给大企业", "无法做收入确认"],
+    ans: 1, exp: "AI 的价值就是减少坐席，按坐席收费等于自我干塌——这是 ToB AI 产品经典的定价重构题（价值定价 vs 计量定价）。", topic: "商业模式" },
+  { q: "厚 harness 最适合哪类任务？", opts: ["高错误成本且难验证", "低风险高频", "模型已跨能力阈值", "开放式探索"], ans: 0, exp: "错误成本×难验证→厚；低成本可验证→薄。厚度按任务切，不按产品切。", topic: "Agent · harness 厚薄" },
+  { q: "判断某层 harness 该不该存在的测试是？", opts: ["问模型再强一档它还在不在", "看竞品有没有", "看实现成本", "看用户偏好"], ans: 0, exp: "结构性需求（权限/审计）该留是资产；能力补丁该删是负债。", topic: "Agent · harness 厚薄" },
+  { q: "薄 harness 对什么的要求反而更高？", opts: ["输入侧（目标描述/上下文/工具）质量", "用更便宜的模型", "减少测试", "只做单轮"], ans: 0, exp: "智能前移到模型后，杠杆是输入质量。", topic: "Agent · harness 厚薄" },
+  { q: "Text-to-SQL 的语义层属于？", opts: ["厚 harness（钉死口径/权限/校验）", "薄 harness", "模型本身", "无关"], ans: 0, exp: "语义层把 32–64% 的裸模型抬到 95%+，是厚 harness 资产。", topic: "Agent · harness 厚薄" },
+  { q: "为什么说前沿模型护城河薄？", opts: ["后训练 RL 信息比特少、能力易被蒸馏", "训练太贵", "数据不够", "监管限制"], ans: 0, exp: "能力一旦出现在公开 API 输出里，竞争对手就能蒸馏出来。", topic: "AI · 护城河" },
+  { q: "Grok Bot 复盘里「交付速度是壁垒」的逻辑？", opts: ["模型无壁垒，靠高频发布发现护城河", "模型有壁垒", "速度只为省成本", "速度无关护城河"], ans: 0, exp: "每约 6 个月从零重做一遍，随模型变强删脚手架。", topic: "AI · 护城河" },
+  { q: "AI 应用层创业者该赌什么？", opts: ["分发/工作流嵌入/专有真实数据", "模型能力本身", "参数规模", "训练数据量"], ans: 0, exp: "模型无壁垒，赌分发与工作流嵌入。", topic: "AI · 护城河" },
+  { q: "AI 产品 PMF 更该看的信号？", opts: ["涌现式工作流+委托率+留存", "demo 惊艳度", "功能数量", "注册量"], ans: 0, exp: "用户把 Agent 用在没想到处是 PMF 信号源。", topic: "PMF · 信号" },
+  { q: "containment rate 冲高不一定是 PMF，因为？", opts: ["可能硬扛该转的问题致 CSAT 崩", "它越高越好", "与 PMF 无关", "它等于留存"], ans: 0, exp: "需与 CSAT/FCR/重复进线率联看。", topic: "PMF · 信号" },
+  { q: "给 Agent 设计工具，错的原则是？", opts: ["工具越多越强", "描述清晰/返回结构化/权限分级", "可验证", "数量克制"], ans: 0, exp: "工具越多模型选错率越高，应克制。", topic: "Agent · 工具设计" },
+  { q: "Agent 入职法指的是？", opts: ["像新员工设计权限/首任务/验收/汇报", "给个大权限", "让它自学", "只做监控"], ans: 0, exp: "把 Agent 当新同事而非功能配置。", topic: "Agent · 工具设计" },
+  { q: "copilot→agent 信任阶梯正确顺序？", opts: ["shadow→copilot→agent", "agent→copilot→shadow", "copilot→shadow→agent", "三者并行"], ans: 0, exp: "先旁听建议，再人确认执行，最后受控自主。", topic: "Agent · 工具设计" },
+  { q: "LLM-as-judge 怎么保证可信？", opts: ["人工标注对齐+抽样人审+ensemble", "用更大模型就够", "不需要人审", "只跑一次"], ans: 0, exp: "三者叠加保障 judge 可信。", topic: "evals · 上线闸门" },
+  { q: "AI 客服评估三层指标正确的是？", opts: ["模型层/交互层/业务层", "只看业务层", "只看模型层", "只看转化率"], ans: 0, exp: "从模型到业务，业务指标才是汇报语言。", topic: "evals · 上线闸门" },
+  { q: "上线前 evals 闸门该进哪？", opts: ["CI/CD 用 golden set 拦截回归", "上线后再测", "只看线上 CSAT", "不需要"], ans: 0, exp: "golden set + LLM-as-judge 进 CI 拦截回归。", topic: "evals · 上线闸门" },
+  { q: "知识频繁变化该用？", opts: ["RAG（改库即生效）", "微调", "纯 prompt", "重训"], ans: 0, exp: "RAG 改库即生效、可溯源。", topic: "RAG · 选型" },
+  { q: "需要固定语气和输出格式该用？", opts: ["微调", "RAG", "更大模型", "加 prompt"], ans: 0, exp: "微调塑造稳定风格/格式/领域行为。", topic: "RAG · 选型" },
+  { q: "AI 产品冷启动最该做？", opts: ["一对一引导 50–300 种子用户", "大量投放", "自助 onboarding", "只做 demo"], ans: 0, exp: "捕捉涌现式工作流，那是 PMF 信号源。", topic: "冷启动" },
+  { q: "种子用户上手会重点记录？", opts: ["用户把 Agent 用在没想到处", "NPS", "时长", "点击率"], ans: 0, exp: "涌现式用法是 PMF 信号源。", topic: "冷启动" },
+  { q: "Unshipping 指的是？", opts: ["上线前主动删 UI 脚手架", "上线后加功能", "不做测试", "撤回产品"], ans: 0, exp: "逼产品跨过 90%→100% 委托线。", topic: "上线 · checklist" },
+  { q: "高危操作（退款/折扣）产品该？", opts: ["默认双人复核", "全自动", "不留痕", "只给 AI"], ans: 0, exp: "高危动作分级授权 + 双人复核。", topic: "上线 · checklist" },
+  { q: "AI 客服幻觉防护金字塔从底到顶？", opts: ["知识约束→生成约束→工具权限→兜底", "兜底→工具→生成→知识", "只有兜底层", "只有 RAG"], ans: 0, exp: "多层防护，不赌单一环节。", topic: "AI客服 · 幻觉治理" },
+  { q: "幻觉在客服场景的最大风险升级是？", opts: ["从答错话升级为做错事（错误退款）", "只是说错话", "响应慢", "成本高"], ans: 0, exp: "风险已从「说错话」到「做错事」。", topic: "AI客服 · 幻觉治理" },
+  { q: "containment rate 必须与哪些联看？", opts: ["CSAT/FCR/重复进线率", "DAU", "注册量", "转化率"], ans: 0, exp: "「假装解决」会被重复进线率出卖。", topic: "AI客服 · 人机协同" },
+  { q: "转人工的三类触发器？", opts: ["显式要求/情绪检测/任务难度", "时间/数量/随机", "只有显式要求", "只有情绪"], ans: 0, exp: "三类触发器 + 上下文随行。", topic: "AI客服 · 人机协同" },
+  { q: "知识库运营第一指标是？", opts: ["未命中率 unmatched", "模型精度", "响应时间", "并发"], ans: 0, exp: "未命中率指向知识覆盖缺口，是知识运营核心。", topic: "ToB 交付" },
+  { q: "知识生命周期四段？", opts: ["采集→结构化→质量治理→反馈闭环", "采集→存储→删除", "只有采集", "训练→部署"], ans: 0, exp: "未命中问题自动回流成知识工单。", topic: "ToB 交付" },
+  { q: "AI SDR 的瓶颈在？", opts: ["渠道信任（送达率/相关性）", "生成能力", "价格", "多语言"], ans: 0, exp: "瓶颈不在生成，在渠道信任。", topic: "AI销售" },
+  { q: "AI 销售工具采用率低头号原因？", opts: ["CRM 数据脏→建议不可信", "价格贵", "界面差", "缺多语言"], ans: 0, exp: "脏数据→建议不准→弃用→更脏的死循环。", topic: "B端数据" },
+  { q: "CRM 数据脏死循环怎么破？", opts: ["让 agent 自动写回 CRM 降记录成本", "换模型", "加坐席", "停用 AI"], ans: 0, exp: "记录成本降为零，数据质量自然改善。", topic: "B端数据" },
+  { q: "2026 新国标要求转人工时？", opts: ["上下文完整随行不让复述", "重新开始会话", "只传账号", "让用户重述"], ans: 0, exp: "人机切换必须携带完整上下文。", topic: "合规" },
+  { q: "企业对 AI 答复的责任？", opts: ["承担法律责任不得推脱", "AI 不代表公司", "用户自负", "平台免责"], ans: 0, exp: "不得以「AI 不代表公司立场」推脱。", topic: "合规" },
+  { q: "持续学习在生产环境失败的表现？", opts: ["灾难性遗忘", "过拟合", "太慢", "太贵"], ans: 0, exp: "几百次微调后基础能力被抹掉，只能从零重训。", topic: "前沿认知" },
+  { q: "RL 放大推理能力主要靠？", opts: ["合成推理数据中期训练做 80%", "RL 做 100%", "只靠 scale", "更大 batch"], ans: 0, exp: "中期训练做 80%，RL 只补最后几个比特。", topic: "前沿认知" },
+  { q: "阻止 2036 年前实现 RSI 的主要不是什么？", opts: ["算力和规模（是泛化与目标设定）", "泛化极限", "目标设定难题", "验证瓶颈"], ans: 0, exp: "阻止的不是算力，是泛化失败与目标设定问题。", topic: "前沿认知" }
+];
+/* 给原有 15 题补 topic（随机抽查按主题命中收藏/标记时用） */
+["AI客服 · 幻觉治理","AI客服 · 人机协同","AI客服 · 幻觉治理","AI客服 · 人机协同","Text-to-SQL","自动化边界","数据驱动","ToB 交付","前沿认知","前沿认知","前沿认知","AI客服 · 人机协同","AI销售","ToB 交付","商业模式"].forEach((t,i)=>{ if(QUIZ_DATA[i] && !QUIZ_DATA[i].topic) QUIZ_DATA[i].topic = t; });
+
+/* =========================================================
+   Podcast：本周热门 AI 播客图文拆解
+   ========================================================= */
+const PODCAST_DATA = [
+  {
+    show: 'Dwarkesh Podcast',
+    title: 'AI 研究者激辩：我们离「递归自我改进」还有多远？',
+    cover: 'linear-gradient(135deg, #5b2df0 0%, #1d6fb8 55%, #25f4ee 130%)',
+    emoji: '🌀',
+    badge: '本周最火 · 研究者视角',
+    date: '2026-09-11 发布 · 约 1 小时 37 分',
+    people: '主持人：Dwarkesh Patel｜嘉宾：John Schulman（Thinking Machines 首席科学家、OpenAI 联创、ChatGPT 后训练操盘手）、Beren Millidge（Zyphra 联创兼首席科学家）、Charlie O\'Neill（Baseten 模型训练负责人）',
+    desc: '三位一线研究者同桌辩论「AI 能否自己改进自己」：自主工作者 1–3 年内落地是共识，但无界智能爆炸被明显降温——卡住它的不是算力，是泛化与目标设定。',
+    yt: 'PrSf7IOYu-I',
+    links: [
+      ['📖 官方页面', 'https://www.dwarkesh.com/p/john-beren-charlie'],
+      ['▶️ YouTube', 'https://www.youtube.com/watch?v=PrSf7IOYu-I'],
+    ],
+    sections: [
+      { h: '① 为什么全网都在讨论这期', html: `<ul>
+        <li><b>选题切中最敏感的分歧</b>：AI 能否自我改进、触发「智能爆炸」，是 2026 下半年业界与投资圈最大的分歧点；</li>
+        <li><b>嘉宾阵容罕见</b>：Schulman 极少出镜，他的判断自带一线信息量；Millidge、O'Neill 代表新一代训练实践者；</li>
+        <li><b>传播密度本周最高</b>：上线即被知名投资人转发，r/mlscaling 社区长帖讨论，多家媒体跟进拆解。</li>
+      </ul>` },
+      { h: '② 核心结论', html: `<blockquote>近期乐观、远期审慎：自主工作者 <b>1–3 年内落地</b>；但真正无界的自我改进 Loop 会被泛化极限、目标设定难题和验证瓶颈卡住。<br>阻止 2036 年前实现 RSI 的，<b>不是算力和规模，而是泛化失败与目标设定问题</b>；最可能的非技术阻碍是监管或政治冲击。</blockquote>` },
+      { h: '③ 四大瓶颈（本场辩论核心）', html: `<table>
+        <tr><th>瓶颈</th><th>内容</th><th>程度</th></tr>
+        <tr><td>泛化极限</td><td>benchmark 与 RL 环境里出色，迁移到开放式真实研究就露怯；反复「惊艳几周 → 暴露判断力短板」</td><td>最核心</td></tr>
+        <tr><td>目标设定难题</td><td>优化给定目标容易，为开放式科学提出正确的新目标是另一种能力</td><td>最深层</td></tr>
+        <tr><td>范式极限</td><td>2012 年以来的配方靠一次次不连续跳变维持进步，能否发现下一跳未知</td><td>待定</td></tr>
+        <tr><td>验证瓶颈</td><td>缺乏对 AI 产出的可靠验证，经济影响卡在模型判断力最弱的地方</td><td>结构性</td></tr>
+      </table>
+      <p><b>二阶 Moravec 悖论</b>：凡能被 benchmark 化的能力 AI 都会很强，但「可评测表现」与「混乱真实世界中的有用性」之间始终有鸿沟。</p>` },
+      { h: '④ 三个高信息量技术判断', html: `<ul>
+        <li><b>护城河比想象中薄</b>：后训练 RL 传递的有效信息极少，能力一旦出现在公开 API 输出里就能被「蒸馏」——壁垒只剩算力、分发和人才；</li>
+        <li><b>持续学习在生产环境已经失败</b>：真实用户轨迹上迭代微调几百次就触发<b>灾难性遗忘</b>，实验室宁愿从零重训——「在线自我进化」目前工程上走不通；</li>
+        <li><b>RL 为什么能放大推理</b>：合成推理数据的中期训练完成约 80% 的工作，RL 只补最后几个比特——解释了各家推理模型为何能力趋同。</li>
+      </ul>` },
+      { h: '⑤ 反方：为什么可能比预期快', html: `<ul>
+        <li><b>国际象棋 Elo 类比</b>：引擎能力沿平滑曲线提升，人类体感却是突变——平滑趋势穿越人类水平时，体感上就是「突然起飞」，数学上不需要不连续点；</li>
+        <li><b>被浪费的理论化算力</b>：若让 AI 在实验前投入相当于「一个世纪」的人类理论化时间预检方案，在<b>既有目标</b>上实现 10 倍加速是可信的——尽管「发明新目标」不在此列。</li>
+      </ul>` },
+      { h: '⑥ 对从业者的启示', html: `<ul>
+        <li><b>应用层创业</b>：别赌模型能力本身，赌分发、工作流嵌入与专有真实数据；</li>
+        <li><b>投资视角</b>：1–3 年自主工作者是共识性机会；「智能爆炸」叙事被一线研究者降温，注意估值隐含假设；</li>
+        <li><b>研究方向</b>：持续学习、自我验证、开放式目标生成——三个被点名的开放难题，也是下一个十年的护城河。</li>
+      </ul>` },
+      { h: '⑦ 可质疑之处', html: `<ul>
+        <li>「RL 信息比特少」未量化隐性 know-how（数据清洗、环境设计）的复制难度；</li>
+        <li>棋类类比有界：棋有完美信息与明确规则，科研是开放式问题域，类比外推需谨慎；</li>
+        <li>嘉宾全部来自英语世界前沿/基础设施圈，「递归自我改进」的定义本身未严格统一。</li>
+      </ul>` },
+    ]
+  },
+  {
+    show: "Lenny's Podcast",
+    title: 'Grok Bot 是如何在一个月里做出来的',
+    cover: 'linear-gradient(135deg, #fe2c55 0%, #a1122f 60%, #4a0a1c 120%)',
+    emoji: '🚀',
+    badge: '操盘手复盘 · 2026 最佳 AI PM 播客',
+    date: '2026-09-08 发布 · 约 1 小时 22 分',
+    people: '主持人：Lenny Rachitsky｜嘉宾：Roman Ugarte（SpaceXAI 产品负责人，前 Cursor 增长负责人，亲历 Cursor 从 15 人到 1000+ 人）',
+    desc: '热门 AI Agent 产品从第一行代码到公开发布约 7 周。不是愿景访谈，而是具体到「亲自引导 300 个用户」「最后两周删 UI」的可抄操作。',
+    yt: 'maSdsTLaMuU',
+    links: [
+      ['🎧 Apple Podcasts', 'https://podcasts.apple.com/us/podcast/how-we-built-grok-bot-in-a-month-roman-ugarte-spacexai/id1627920305?i=1000788466289'],
+      ['🎵 Spotify', 'https://open.spotify.com/episode/1VWSuRHsnxe9p7Fm0KxxKb'],
+      ['▶️ YouTube', 'https://youtu.be/maSdsTLaMuU'],
+      ['📰 Substack', 'https://open.substack.com/pub/lenny/p/how-we-built-grok-bot-in-a-month'],
+    ],
+    sections: [
+      { h: '① 为什么值得 AI 产品经理精读', html: `<ul>
+        <li><b>选题就是一份 PM 复盘模板</b>：主讲人就是操盘的产品负责人，覆盖「从 0 到 1」和「从 1 到 N」两条曲线；</li>
+        <li><b>颗粒度到动作层</b>：不是愿景，是可以直接抄的操作。</li>
+      </ul>` },
+      { h: '② 七个可直接落地的 PM 实践', html: `<ul>
+        <li><b>「反交付」Unshipping</b>：发布前最后两周主动删实验性 UI 和功能面板——按钮是模型能力不足时的拐杖；</li>
+        <li><b>亲手引导前 300 个用户</b>：一对一上手会，重点记录「用户把 Agent 用在了你没想到的地方」——那是 PMF 的信号源；</li>
+        <li><b>Agent 入职法</b>：把 Agent 当新员工而非功能配置——权限边界、第一个任务、如何验收、如何汇报；每个自主 Agent 独立云虚拟机；</li>
+        <li><b>从零自建</b>：不塞进 Cursor——新能力的工作范式与主产品不同（工具 vs 同事）时，功能化会拖累两边；</li>
+        <li><b>「同事化」产品哲学</b>：衡量产品的方式改为「哪些工作可以完整委托出去」，委托率比功能使用率更接近真实价值；</li>
+        <li><b>护城河是跑出来的</b>：靠高频发布发现护城河，每约 6 个月把产品重做一遍，随模型变强不断删脚手架；</li>
+        <li><b>小团队 + 刻意隔离</b>：独立发布节奏、独立基础设施、不背主产品 KPI——隔离是速度的来源。</li>
+      </ul>
+      <blockquote>「能完成 100% 工作的 AI，和只完成 90% 的 AI，在体验上是两个物种。」——PM 的任务是推过 90%→100% 这条线，而不是在 90% 处搭漂亮的补丁。</blockquote>` },
+      { h: '③ 与 Dwarkesh 那期的互文', html: `<table>
+        <tr><th>维度</th><th>Dwarkesh（研究者视角）</th><th>Lenny's（操盘手视角）</th></tr>
+        <tr><td>对 Agent 的判断</td><td>自主工作者 1–3 年落地</td><td>已经在做，7 周上线</td></tr>
+        <tr><td>对护城河的判断</td><td>前沿模型护城河薄，蒸馏容易</td><td>同意模型无壁垒，但<b>交付速度本身</b>是壁垒</td></tr>
+        <tr><td>对「90%」问题的态度</td><td>验证瓶颈卡住经济影响</td><td>主动删 UI，逼产品跨过 90%→100%</td></tr>
+      </table>
+      <p>研究者的「灾难性遗忘、蒸馏泄露」等判断，恰好解释了操盘手为什么只能靠速度赢。</p>` },
+      { h: '④ 可质疑之处', html: `<ul>
+        <li><b>幸存者偏差</b>：7 周爆款叙事没有披露试错次数；</li>
+        <li><b>资源前提</b>：模型与算力加持是外部团队难复制的隐性条件；</li>
+        <li><b>删 UI 的适用边界</b>：只对模型能力跨过阈值的任务成立，否则只会造成不可用；</li>
+        <li>「一个月」与「七周」口径差，引用数据时注意。</li>
+      </ul>` },
+    ]
+  },
+  {
+    show: '主题拆解卡',
+    title: 'AI PM 如何搭一套能上线的 evals 体系',
+    cover: 'linear-gradient(135deg, #1f7a6c 0%, #145a4f 55%, #0c3a33 130%)',
+    emoji: '📐',
+    badge: '主题拆解 · 方法论',
+    date: '随读卡 · 评估体系',
+    people: '基于本应用 evals / 上线闸门知识卡综合',
+    desc: '没有共识的北极星指标是 2026 行业公认缺口。三层指标金字塔 + LLM-as-judge + CI 拦截回归，是 AI 产品能稳定上线的工程底线。',
+    links: [
+      ['🔍 YouTube 搜索', 'https://www.youtube.com/results?search_query=AI+product+evals+LLM+as+judge'],
+      ['📻 Lenny\'s Podcast', 'https://www.lennysnewsletter.com'],
+      ['📰 Latent Space', 'https://www.latent.space'],
+    ],
+    sections: [
+      { h: '① 三层指标金字塔', html: `<ul>
+        <li><b>模型层</b>：意图识别准确率、答案忠实度、工具调用正确率——golden set + LLM-as-judge；</li>
+        <li><b>交互层</b>：转人工率、澄清轮次、会话完成率、<b>重复进线率</b>；</li>
+        <li><b>业务层</b>：FCR、CSAT、转化——业务指标才是汇报语言。</li>
+      </ul>` },
+      { h: '② LLM-as-judge 的可信保障', html: `<ul>
+        <li>人工标注对齐 + 抽样人审 + judge 模型 ensemble；</li>
+        <li>golden set 进 CI/CD 拦截回归，不让坏改动上线；</li>
+        <li>别只跑一次，也别只信更大模型。</li>
+      </ul>` },
+      { h: '③ 上线闸门', html: `<blockquote>线上灰度看重复进线率——「假装解决」会被它出卖。不过闸门不上线。</blockquote>` },
+      { h: '④ 常见反模式', html: `<ul>
+        <li>只看业务层、不看模型层 → 回归无法定位；</li>
+        <li> containment rate 单独冲高，CSAT 崩了才发现；</li>
+        <li>evals 只在上线后跑，不进 CI。</li>
+      </ul>` },
+    ]
+  },
+  {
+    show: '主题拆解卡',
+    title: 'Agent harness 的厚薄之辩',
+    cover: 'linear-gradient(135deg, #5a3a1a 0%, #8a5a2a 55%, #b5813f 130%)',
+    emoji: '🧰',
+    badge: '主题拆解 · 工程哲学',
+    date: '随读卡 · harness 厚薄',
+    people: '基于本应用 harness / copilot-agent 知识卡综合',
+    desc: 'harness 是套在模型外的工程层。该做厚还是做薄，按「错误成本 × 可验证性」切，不是按产品切——而且每层都该定期自问能不能删。',
+    links: [
+      ['🔍 YouTube 搜索', 'https://www.youtube.com/results?search_query=AI+agent+harness+thick+thin+scaffolding'],
+      ['📰 Latent Space', 'https://www.latent.space'],
+      ['📰 Anthropic', 'https://www.anthropic.com'],
+    ],
+    sections: [
+      { h: '① 厚与薄的判断公式', html: `<blockquote><b>错误成本 × 可验证性</b>：高成本/难验证→厚；低成本/可验证→薄。同一产品里按任务并存。</blockquote>` },
+      { h: '② 厚 harness 的五类场景', html: `<ul>
+        <li>高错误成本不可逆动作（退款/下单）；</li>
+        <li>产出难验证（对外话术/品牌）；</li>
+        <li>强监管与责任归属（金融/医疗/合规）；</li>
+        <li>企业脏现实（Text-to-SQL 语义层）；</li>
+        <li>确定性流程编排（审批链/工单）。</li>
+      </ul>` },
+      { h: '③ 薄 harness 的五类场景', html: `<ul>
+        <li>低成本可验证（内部查询）；</li>
+        <li>自带验证器（代码/SQL 干跑）；</li>
+        <li>模型已跨 90%→100% 线（unshipping）；</li>
+        <li>开放式探索与生成；</li>
+        <li>拼速度吃模型升级红利。</li>
+      </ul>` },
+      { h: '④ 每层该不该存在的测试', html: `<p>逐层问「<b>模型再强一档，这层还在不在</b>」：</p>
+        <ul><li>该在（权限/审计/语义层）= 资产；</li><li>不在（提示词补丁/格式修补/90% 确认 UI）= 负债，排期删。</li></ul>` },
+    ]
+  },
+  {
+    show: '主题拆解卡',
+    title: 'AI 产品的 PMF 与护城河',
+    cover: 'linear-gradient(135deg, #2a4d8f 0%, #1d3a6b 55%, #12254a 130%)',
+    emoji: '🛡️',
+    badge: '主题拆解 · 商业',
+    date: '随读卡 · PMF 与护城河',
+    people: '基于本应用护城河 / Grok Bot 复盘知识卡综合',
+    desc: '后训练 RL 传递的有效信息极少，能力一旦出现在 API 输出里就能被蒸馏——模型本身无壁垒。护城河在算力、分发、交付速度与专有真实数据。',
+    links: [
+      ['🔍 YouTube 搜索', 'https://www.youtube.com/results?search_query=AI+product+moat+PMF+delivery+speed'],
+      ['📻 ACQ2', 'https://a16z.com/podcasts/'],
+      ['📻 Lenny\'s Podcast', 'https://www.lennysnewsletter.com'],
+    ],
+    sections: [
+      { h: '① 模型无壁垒的含义', html: `<blockquote>后训练 RL 传递的<b>信息比特少</b>，能力一旦出现在公开 API 输出里，蒸馏是平凡的事。</blockquote>` },
+      { h: '② 交付速度本身是壁垒', html: `<ul>
+        <li>Grok Bot：每约 6 个月从零重做一遍，随模型变强删脚手架；</li>
+        <li>护城河是跑出来的，不是画在 PPT 上的；</li>
+        <li>想吃到模型升级红利，harness 要薄。</li>
+      </ul>` },
+      { h: '③ PMF 信号', html: `<ul>
+        <li><b>涌现式工作流</b>：用户把 Agent 用在没想到处；</li>
+        <li>看<b>委托率</b>而非功能使用率；</li>
+        <li>留存与重复进线率联看。</li>
+      </ul>` },
+      { h: '④ 可质疑之处', html: `<ul>
+        <li>「交付速度是壁垒」对有模型/算力加持的团队成立，外部团队难复制；</li>
+        <li>护城河叙事存在幸存者偏差。</li>
+      </ul>` },
+    ]
+  }
+];
+
+/* =========================================================
+   播客知识点派生选择题（随机抽查的播客题源）
+   ========================================================= */
+const PODCAST_QUIZ = [
+  { q: "RSI 的四大瓶颈里最核心的是？", opts: ["泛化极限", "算力不足", "数据不够", "监管"], ans: 0, exp: "泛化极限最核心，目标设定难题最深层。", topic: "前沿认知" },
+  { q: "持续学习在生产环境的失败表现？", opts: ["灾难性遗忘", "过拟合", "太慢", "太贵"], ans: 0, exp: "几百次微调后基础能力被抹掉，只能从零重训。", topic: "前沿认知" },
+  { q: "后训练 RL 传递的有效信息？", opts: ["极少，能力易被蒸馏", "非常多", "中等", "无法量化"], ans: 0, exp: "能力一旦出现在 API 输出里就能被蒸馏。", topic: "AI · 护城河" },
+  { q: "Grok Bot 复盘里 unshipping 指？", opts: ["上线前删 UI 脚手架", "上线后加功能", "不做测试", "撤回"], ans: 0, exp: "逼产品跨过 90%→100% 委托线。", topic: "从0到1" },
+  { q: "Agent 入职法把 Agent 当？", opts: ["新员工（权限/首任务/验收/汇报）", "功能配置", "监控工具", "免费劳动力"], ans: 0, exp: "像新同事而非功能。", topic: "Agent · 工具设计" },
+  { q: "Grok Bot 没塞进 Cursor 而是从零自建，因为？", opts: ["工作范式不同（工具 vs 同事）", "没基础设施", "没钱", "老板要求"], ans: 0, exp: "功能化会同时拖累两边。", topic: "从0到1" },
+  { q: "「同事化」产品哲学衡量产品的方式是？", opts: ["哪些工作可完整委托", "功能覆盖率", "DAU", "注册量"], ans: 0, exp: "委托率比功能使用率更接近真实价值。", topic: "从0到1" },
+  { q: "孵化团队刻意隔离要争取？", opts: ["发布节奏/基础设施/KPI 三项豁免", "更多预算", "更多人", "更高 KPI"], ans: 0, exp: "隔离是速度的来源。", topic: "从0到1" },
+  { q: "二阶 Moravec 悖论指的是？", opts: ["可评测表现与真实有用性之间始终有鸿沟", "模型越大越聪明", "benchmark 无意义", "人类永远更强"], ans: 0, exp: "凡能被 benchmark 化的能力 AI 都强，但有用性有鸿沟。", topic: "前沿认知" },
+  { q: "evals 三层指标金字塔正确的是？", opts: ["模型层/交互层/业务层", "只看业务", "只看模型", "只看转化"], ans: 0, exp: "业务指标才是汇报语言。", topic: "evals · 上线闸门" }
+];
+
+const podList = document.getElementById('podList');
+const podArticle = document.getElementById('podArticle');
+podList.innerHTML = `
+  <div class="pod-title">🎙️ 本周热门 AI 播客拆解</div>
+  <div class="pod-sub">2026 年 9 月第二周热榜双爆款 · 一期研究者辩论 + 一期操盘手复盘<br>点开卡片进入图文拆解</div>`;
+PODCAST_DATA.forEach((ep, i) => {
+  const div = document.createElement('div');
+  div.className = 'pod-card';
+  div.innerHTML = `
+    <div class="pod-cover" style="background:${ep.cover}">
+      <span class="badge">${ep.badge}</span>
+      <h3>${ep.emoji} ${ep.title}</h3>
+      <button class="pod-play" data-ep="${i}" title="播放源音频">▶</button>
+    </div>
+    <div class="pod-meta"><span>📻 ${ep.show}</span><span>🕐 ${ep.date}</span></div>
+    <p class="desc">${ep.desc}</p>`;
+  div.addEventListener('click', () => openEpisode(i));
+  div.querySelector('.pod-play').addEventListener('click', e => {
+    e.stopPropagation();
+    playingEp === i ? closePlayer() : openPlayer(i);
+  });
+  podList.appendChild(div);
+});
+
+function openEpisode(i) {
+  const ep = PODCAST_DATA[i];
+  podArticle.innerHTML = `
+    <button class="back-btn" id="podBack">‹ 返回播客列表</button>
+    <div class="art-title">${ep.emoji} ${ep.title}</div>
+    <div class="art-meta"><b style="color:var(--text)">${ep.show}</b> · ${ep.date}<br>${ep.people}</div>
+    ${ep.sections.map(s => `<div class="art-sec"><h4>${s.h}</h4>${s.html}</div>`).join('')}`;
+  podArticle.style.display = 'block';
+  podList.style.display = 'none';
+  podArticle.scrollTop = 0;
+  document.getElementById('podBack').addEventListener('click', () => {
+    podArticle.style.display = 'none';
+    podList.style.display = '';
+  });
+}
+
+/* ===== 迷你播放器：用官方源（YouTube 嵌入）播放单集音频 ===== */
+const playerSheet = document.getElementById('playerSheet');
+let playingEp = -1;
+
+function syncPodPlayBtns() {
+  document.querySelectorAll('.pod-play').forEach((b, i) => {
+    b.textContent = i === playingEp ? '⏸' : '▶';
+  });
+}
+
+function openPlayer(i) {
+  const ep = PODCAST_DATA[i];
+  playingEp = i;
+  playerSheet.innerHTML = `
+    <div class="player-head">
+      <div class="player-title">${ep.emoji} ${ep.title} · ${ep.show}</div>
+      <button class="player-close" id="playerClose">✕</button>
+    </div>
+    <iframe class="player-frame" src="https://www.youtube.com/embed/${ep.yt}?autoplay=1&rel=0"
+      allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    <div class="player-links">
+      ${ep.links.map(([label, url]) => `<a href="${url}" target="_blank" rel="noopener">${label}</a>`).join('')}
+    </div>`;
+  playerSheet.classList.add('open');
+  document.getElementById('playerClose').addEventListener('click', closePlayer);
+  syncPodPlayBtns();
+}
+
+function closePlayer() {
+  playerSheet.classList.remove('open');
+  playerSheet.innerHTML = '';   // 移除 iframe 即停止播放
+  playingEp = -1;
+  syncPodPlayBtns();
+}
+
+/* =========================================================
+   Tab 切换
+   ========================================================= */
+const tabs = document.querySelectorAll('.tab');
+const pages = {
+  feed: document.getElementById('page-feed'),
+  podcast: document.getElementById('page-podcast'),
+  quiz: document.getElementById('page-quiz'),
+  coach: document.getElementById('page-coach')
+};
+tabs.forEach(t => t.addEventListener('click', () => {
+  tabs.forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  Object.values(pages).forEach(p => p.classList.remove('active'));
+  pages[t.dataset.page].classList.add('active');
+  if (t.dataset.page !== 'feed') stopSpeak();
+}));
+
+/* =========================================================
+   Feed：渲染 + 收藏/标记 + 过滤
+   ========================================================= */
+const feed = document.getElementById('feed');
+const favSet = new Set(store.get('aipm_fav', []));
+const markSet = new Set(store.get('aipm_mark', []));
+const quizFavSet = new Set(store.get('aipm_quizfav', []));
+let feedFilter = 'all';
+let rounds = store.get('aipm_rounds', []);
+
+function filteredIdx() {
+  if (feedFilter === 'fav') return FEED_DATA.map((_, i) => i).filter(i => favSet.has(i));
+  if (feedFilter === 'mark') return FEED_DATA.map((_, i) => i).filter(i => markSet.has(i));
+  return FEED_DATA.map((_, i) => i);
+}
+
+function renderChips() {
+  document.getElementById('chipBar').innerHTML = [
+    ['all', '全部'],
+    ['fav', '⭐ 收藏'],
+    ['mark', '🔖 标记'],
+  ].map(([k, label]) =>
+    `<button class="chip ${feedFilter === k ? 'active' : ''}" data-f="${k}">${label}</button>`
+  ).join('');
+}
+
+function renderRoundCard(r) {
+  const div = document.createElement('div');
+  div.className = 'card round-card';
+  const pct = r.total ? Math.round(r.score / r.total * 100) : 0;
+  const list = r.questions.map((q, i) => {
+    const ua = q.userAns == null ? '未答' : 'ABCD'[q.userAns];
+    const ca = 'ABCD'[q.ans];
+    return `<li class="${q.correct ? 'ok' : 'bad'}">${i + 1}. ${q.q} <span class="rc-ans">你:${ua} · 正确:${ca}</span></li>`;
+  }).join('');
+  div.innerHTML = `
+    <div class="q-tag"># 📊 收藏的抽查总结</div>
+    <div class="q-title">抽查总结 · ${r.score}/${r.total}（${pct}%）</div>
+    <div class="q-body"><ul class="rc-list">${list}</ul><p style="color:var(--muted);font-size:12px;margin-top:8px">${r.date}</p></div>`;
+  return div;
+}
+
+function renderQuizFavCard(i) {
+  const q = QUIZ_DATA[i];
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <div class="q-tag"># ⭐ 收藏的刷题${q.topic ? ' · ' + q.topic : ''}</div>
+    <div class="q-title">${q.q}</div>
+    <div class="q-body">
+      <ul class="rc-list">
+        ${q.opts.map((o, j) => `<li class="${j === q.ans ? 'ok' : ''}">${'ABCD'[j]}. ${o}${j === q.ans ? ' ✓' : ''}</li>`).join('')}
+      </ul>
+      <p style="color:#c9c9d6;font-size:13px;line-height:1.6;margin-top:10px">💡 ${q.exp}</p>
+    </div>`;
+  return div;
+}
+
+function renderFeed() {
+  feed.innerHTML = '';
+  const list = filteredIdx();
+  const showFavExtras = feedFilter === 'fav';
+  const extraCount = showFavExtras ? (rounds.length + quizFavSet.size) : 0;
+  const total = list.length + extraCount;
+  if (!total) {
+    const empty = document.createElement('div');
+    empty.className = 'feed-empty';
+    empty.innerHTML = feedFilter === 'fav'
+      ? '⭐ 还没有收藏的内容<br><span>收藏面试题/刷题、或教练抽查后点「收藏」，都会出现在这里</span>'
+      : '🔖 还没有标记的面试题<br><span>在题目卡片底部点「标记」，它会出现在这里</span>';
+    feed.appendChild(empty);
+    return;
+  }
+  let cardNo = 0;
+  list.forEach((idx) => {
+    const item = FEED_DATA[idx];
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.dataset.fi = idx;
+    div.innerHTML = `
+      <div class="q-tag"># ${item.tag}</div>
+      <div class="q-title">${item.q}</div>
+      <div class="q-body">${item.a}</div>
+      <div class="card-actions">
+        <button class="act-btn ${favSet.has(idx) ? 'active' : ''}" data-act="fav" data-i="${idx}">${favSet.has(idx) ? '⭐ 已收藏' : '☆ 收藏'}</button>
+        <button class="act-btn" data-act="mark" data-i="${idx}">${markSet.has(idx) ? '🔖 已标记' : '🔖 标记'}</button>
+      </div>
+      ${cardNo === 0 ? '<div class="swipe-hint">⌃ 上滑查看下一题 ⌃</div>' : ''}`;
+    feed.appendChild(div);
+    cardNo++;
+  });
+  if (showFavExtras) {
+    quizFavSet.forEach(i => { feed.appendChild(renderQuizFavCard(i)); cardNo++; });
+    rounds.forEach(r => { feed.appendChild(renderRoundCard(r)); cardNo++; });
+  }
+  feed.scrollTop = 0;
+  observeCards();
+}
+
+function refreshBtnState(btn, on) {
+  btn.classList.toggle('active', on);
+  btn.textContent = btn.dataset.act === 'fav'
+    ? (on ? '⭐ 已收藏' : '☆ 收藏')
+    : (on ? '🔖 已标记' : '🔖 标记');
+}
+
+feed.addEventListener('click', e => {
+  const btn = e.target.closest('.act-btn');
+  if (!btn) return;
+  const i = +btn.dataset.i;
+  const set = btn.dataset.act === 'fav' ? favSet : markSet;
+  const on = !set.has(i);
+  on ? set.add(i) : set.delete(i);
+  store.set(btn.dataset.act === 'fav' ? 'aipm_fav' : 'aipm_mark', [...set]);
+  refreshBtnState(btn, on);
+  renderChips();
+});
+
+document.getElementById('chipBar').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  feedFilter = chip.dataset.f;
+  renderChips();
+  renderFeed();
+});
+
+/* 语音播放：首页每张卡可见时自动朗读；左上角按钮静音/开声（默认开声） */
+let soundOn = store.get('aipm_sound', true);
+const soundToggle = document.getElementById('soundToggle');
+function renderSoundIcon(){ soundToggle.textContent = soundOn ? '🔊' : '🔇'; }
+soundToggle.addEventListener('click', () => {
+  soundOn = !soundOn;
+  store.set('aipm_sound', soundOn);
+  renderSoundIcon();
+  if (!soundOn) stopSpeak();
+  else { const fi = currentVisibleFi(); if (fi >= 0) speakCard(fi); }
+});
+renderSoundIcon();
+
+let speakingIdx = -1;
+function plainCard(item){ const tmp = document.createElement('div'); tmp.innerHTML = item.a; return item.q + '。' + tmp.innerText; }
+function speakCard(i){
+  if (!soundOn || !('speechSynthesis' in window)) return;
+  if (speakingIdx === i && speechSynthesis.speaking) return;
+  speechSynthesis.cancel();
+  speakingIdx = i;
+  const u = new SpeechSynthesisUtterance(plainCard(FEED_DATA[i]));
+  u.lang = 'zh-CN'; u.rate = 1.05;
+  u.onend = u.onerror = () => { if (speakingIdx === i) speakingIdx = -1; };
+  speechSynthesis.speak(u);
+}
+function stopSpeak(){ if ('speechSynthesis' in window) speechSynthesis.cancel(); speakingIdx = -1; }
+function currentVisibleFi(){
+  const cards = [...feed.querySelectorAll('.card[data-fi]')];
+  for (const c of cards){ const r = c.getBoundingClientRect(); if (r.top > -40 && r.top < innerHeight * 0.5) return +c.dataset.fi; }
+  return cards.length ? +cards[0].dataset.fi : -1;
+}
+const ttsIO = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    const fi = +en.target.dataset.fi;
+    if (isNaN(fi)) return;
+    if (en.isIntersecting && en.intersectionRatio >= 0.6) speakCard(fi);
+    else if (fi === speakingIdx) stopSpeak();
+  });
+}, { threshold: [0, 0.6] });
+function observeCards(){ ttsIO.disconnect(); [...feed.querySelectorAll('.card[data-fi]')].forEach(c => ttsIO.observe(c)); }
+
+renderChips();
+renderFeed();
+
+/* =========================================================
+   Quiz：选择题
+   ========================================================= */
+let order = [], qi = 0, score = 0, answered = false;
+const qCard = document.getElementById('qCard');
+const quizProg = document.getElementById('quizProg');
+
+/* 错题本：localStorage 持久化 */
+let wrongBook = new Set(store.get('aipm_wrong', []));
+
+function shuffle(arr) { return arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(v => v[1]); }
+
+function startQuiz(onlyWrong = false) {
+  let pool = QUIZ_DATA.map((_, i) => i);
+  if (onlyWrong && wrongBook.size) pool = [...wrongBook];
+  order = shuffle(pool);
+  qi = 0; score = 0;
+  renderQ();
+}
+
+function renderQ() {
+  if (qi >= order.length) return renderFinal();
+  answered = false;
+  const item = QUIZ_DATA[order[qi]];
+  const cur = order[qi];
+  quizProg.style.width = (qi / order.length * 100) + '%';
+  qCard.innerHTML = `
+    <div class="q-text">${item.q}</div>
+    ${item.opts.map((o, j) => `<div class="opt" data-j="${j}"><span class="key">${'ABCD'[j]}</span><span>${o}</span></div>`).join('')}
+    <div class="explain" id="explain">💡 ${item.exp}</div>
+    <button class="btn" id="nextBtn" disabled>下一题</button>
+    <button class="btn ghost ${quizFavSet.has(cur) ? 'fav-on' : ''}" id="favBtn" style="margin-top:8px">${quizFavSet.has(cur) ? '⭐ 已收藏' : '☆ 收藏本题'}</button>
+    <button class="btn ghost" id="restartBtn" style="margin-top:8px">重新开始（打乱顺序）</button>`;
+
+  qCard.querySelectorAll('.opt').forEach(el => el.addEventListener('click', () => {
+    if (answered) return;
+    answered = true;
+    const j = +el.dataset.j;
+    qCard.querySelectorAll('.opt').forEach((o, k) => {
+      if (k === item.ans) o.classList.add('correct');
+      else if (k === j) o.classList.add('wrong');
+    });
+    if (j === item.ans) {
+      score++;
+      wrongBook.delete(order[qi]);               // 答对即出本
+    } else {
+      wrongBook.add(order[qi]);                  // 答错进本
+    }
+    store.set('aipm_wrong', [...wrongBook]);
+    document.getElementById('explain').style.display = 'block';
+    const nb = document.getElementById('nextBtn');
+    nb.disabled = false;
+    nb.textContent = qi === order.length - 1 ? '查看结果' : '下一题';
+    nb.onclick = () => { qi++; renderQ(); };
+  }));
+  document.getElementById('favBtn').addEventListener('click', () => {
+    const on = !quizFavSet.has(cur);
+    on ? quizFavSet.add(cur) : quizFavSet.delete(cur);
+    store.set('aipm_quizfav', [...quizFavSet]);
+    const fb = document.getElementById('favBtn');
+    fb.classList.toggle('fav-on', on);
+    fb.textContent = on ? '⭐ 已收藏' : '☆ 收藏本题';
+  });
+  document.getElementById('restartBtn').onclick = startQuiz;
+}
+
+function renderFinal() {
+  const total = order.length;
+  const pct = total ? Math.round(score / total * 100) : 0;
+  const cleared = total > 0 && wrongBook.size === 0;
+  const comment = cleared ? '🎉 错题清零，面试稳了！'
+    : pct >= 90 ? '🏆 面试稳了！'
+    : pct >= 70 ? '👍 还差一点，重点复盘错题'
+    : '💪 回到首页听几遍面试题再来';
+  qCard.innerHTML = `
+    <div class="final">
+      <div class="big">${score} / ${total}</div>
+      <p style="font-size:22px;margin:10px 0">${comment}</p>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:24px">正确率 ${pct}%</p>
+      <button class="btn" onclick="startQuiz()">再来一轮（全部 ${QUIZ_DATA.length} 题）</button>
+      ${wrongBook.size ? `<button class="btn ghost" style="margin-top:8px" onclick="startQuiz(true)">只刷错题（${wrongBook.size} 题）</button>` : ''}
+    </div>`;
+  quizProg.style.width = '100%';
+}
+
+startQuiz();
+
+/* =========================================================
+   Coach：带工具调用循环的 AI 面试教练（真正的 agent）
+   模型在循环里，工具读学员数据 → 出交互测验 → 看结果再讲
+   ========================================================= */
+(function () {
+  const SYSTEM_PROMPT = `你是「AI 产品经理面试教练」，嵌在一个 PM 刷题应用里，学员正在准备 AI 产品经理面试。
+可用工具：
+- get_progress：看学员错题本/掌握/收藏情况
+- list_topics：列出所有可用主题（题卡 tag + 播客标题）
+- get_card(topic)：按关键词取某张知识卡的题目+答案原文，讲解须据此
+- run_quiz(questions)：出交互式测验并自动收回作答结果
+- mark_mastered(topic)：把某主题标记为已掌握
+教学循环：get_progress 诊断 → get_card 取知识点 → 简洁讲解 → run_quiz 出 2-4 题验证 → 看结果，对的 mark_mastered、错的再讲。
+规则：中文、口语化、简洁；先 get_card 再讲解，不要凭空；每次 run_quiz 2-4 题，opts 3-4 个，ans 是正确项索引（0 起），每题带 topic；讲解与出题分两轮，别混在一条消息里。`;
+
+  const TOOL_SPECS = [
+    { type:'function', function:{ name:'get_progress', description:'查看学员学习进度：错题、已标记掌握、收藏。', parameters:{ type:'object', properties:{} } } },
+    { type:'function', function:{ name:'list_topics', description:'列出所有可用知识主题（题卡 tag 与播客标题），供 get_card 引用。', parameters:{ type:'object', properties:{} } } },
+    { type:'function', function:{ name:'get_card', description:'按关键词（tag 或题目片段）取一张知识卡的题目与答案原文。', parameters:{ type:'object', properties:{ topic:{ type:'string' } }, required:['topic'] } } },
+    { type:'function', function:{ name:'run_quiz', description:'向学员出一组交互式选择题并自动收集作答结果。仅在需要验证掌握度时调用。', parameters:{ type:'object', properties:{ questions:{ type:'array', items:{ type:'object', properties:{ q:{type:'string'}, opts:{type:'array',items:{type:'string'}}, ans:{type:'integer'}, exp:{type:'string'}, topic:{type:'string'} }, required:['q','opts','ans','exp'] } } }, required:['questions'] } } },
+    { type:'function', function:{ name:'mark_mastered', description:'把某主题标记为已掌握（同步到首页「标记」）。', parameters:{ type:'object', properties:{ topic:{type:'string'} }, required:['topic'] } } },
+  ];
+
+  const chatLog = document.getElementById('chatLog');
+  const input = document.getElementById('coachInput');
+  const sendBtn = document.getElementById('coachSend');
+  const activity = (() => { const e = document.createElement('div'); e.className='activity'; chatLog.appendChild(e); return e; })();
+  let history = store.get('aipm_chat', []);
+  let busy = false, abortCtrl = null;
+
+  const loadLlm = () => store.get('aipm_llm', { base:'https://api.openai.com/v1', key:'', model:'gpt-4o-mini' });
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const md = s => esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+  const scrollBottom = () => { chatLog.scrollTop = chatLog.scrollHeight; };
+  const actLabel = n => ({ get_progress:'📊 查进度', list_topics:'🏷️ 列主题', get_card:'📖 查知识卡', run_quiz:'📝 出题中', mark_mastered:'✅ 标记掌握' })[n] || ('⚙️ '+n);
+  function setActivity(t){ activity.textContent = t; activity.classList.toggle('show', !!t); }
+  function addBubble(role, html){ const b=document.createElement('div'); b.className='msg '+role; b.innerHTML=html; chatLog.insertBefore(b, activity); scrollBottom(); return b; }
+
+  function renderHistory(){
+    [...chatLog.querySelectorAll('.msg,.coach-empty')].forEach(m=>m.remove());
+    if(!history.length){ const e=document.createElement('div'); e.className='coach-empty'; e.innerHTML='我是你的 <b>AI 面试教练</b>。<br>说「<b>考考我薄弱点</b>」，我会看错题本、讲知识点、出题验证，错了我再讲。'; chatLog.insertBefore(e, activity); return; }
+    history.forEach(m => addBubble(m.role, m.role==='user' ? esc(m.content) : md(m.content)));
+    scrollBottom();
+  }
+
+  // ---- 工具实现：对接 app 真实数据 ----
+  function getProgress(){
+    const wrong = [...wrongBook].map(i => ({ idx:i, q: QUIZ_DATA[i] && QUIZ_DATA[i].q }));
+    return { totalQuestions: QUIZ_DATA.length, wrongCount: wrongBook.size, wrongQuestions: wrong, markedCount: markSet.size, favCount: favSet.size, hint:'用 get_card(topic) 按错题关键词取相关题卡讲解。' };
+  }
+  function listTopics(){ return { feedTopics: FEED_DATA.map(d=>d.tag), podcasts: PODCAST_DATA.map(p=>p.title) }; }
+  function getCard(topic){
+    const k = (topic||'').toLowerCase().trim();
+    if(!k) return { found:false };
+    let m = FEED_DATA.find(d => d.tag.toLowerCase().includes(k) || d.q.toLowerCase().includes(k));
+    if(!m) m = FEED_DATA.find(d => d.a.toLowerCase().includes(k));
+    if(!m) return { found:false, suggestion:'调用 list_topics 看可用主题' };
+    const tmp = document.createElement('div'); tmp.innerHTML = m.a;
+    return { found:true, tag:m.tag, q:m.q, a: tmp.innerText };
+  }
+  function markMastered(topic){
+    const k = (topic||'').toLowerCase().trim();
+    const idx = FEED_DATA.findIndex(d => d.tag.toLowerCase().includes(k) || d.q.toLowerCase().includes(k));
+    if(idx<0) return { ok:false, reason:'未找到匹配题卡', suggestion:'list_topics' };
+    markSet.add(idx); store.set('aipm_mark',[...markSet]); renderChips();
+    return { ok:true, markedTopic: FEED_DATA[idx].tag };
+  }
+  function runInlineQuiz(questions){
+    return new Promise(resolve => {
+      const card = document.createElement('div'); card.className='inline-quiz';
+      const states = questions.map(()=>({ picked:null }));
+      const blocks = [];
+      questions.forEach((item, qi)=>{
+        const block = document.createElement('div'); block.className='iq-block';
+        const qt = document.createElement('div'); qt.className='iq-q'; qt.textContent = (qi+1)+'. '+item.q; block.appendChild(qt);
+        (item.opts||[]).forEach((o,j)=>{
+          const opt = document.createElement('div'); opt.className='opt'; opt.innerHTML='<span class="key">'+('ABCD'[j]||j)+'</span><span>'+esc(o)+'</span>';
+          opt.addEventListener('click', ()=>{
+            if(card.classList.contains('locked')) return;
+            block.querySelectorAll('.opt').forEach(x=>x.classList.remove('selected'));
+            opt.classList.add('selected'); states[qi].picked = j;
+            submitBtn.disabled = !states.every(s=>s.picked!==null);
+          });
+          block.appendChild(opt);
+        });
+        const exp = document.createElement('div'); exp.className='explain'; exp.textContent='💡 '+(item.exp||''); block.appendChild(exp);
+        card.appendChild(block); blocks.push(block);
+      });
+      const submitBtn = document.createElement('button'); submitBtn.className='btn'; submitBtn.textContent='提交作答'; submitBtn.disabled = true;
+      submitBtn.addEventListener('click', ()=>{
+        card.classList.add('locked');
+        const results = questions.map((item,qi)=>{
+          const picked = states[qi].picked; const correct = picked===item.ans;
+          blocks[qi].querySelectorAll('.opt').forEach((el,j)=>{
+            if(j===item.ans) el.classList.add('correct');
+            else if(j===picked) el.classList.add('wrong');
+            el.classList.remove('selected');
+          });
+          blocks[qi].querySelector('.explain').style.display='block';
+          return { q:item.q, userAns:picked, correct, ans:item.ans, topic:item.topic||'' };
+        });
+        submitBtn.remove();
+        const score = results.filter(r=>r.correct).length;
+        const weakTopics = [...new Set(results.filter(r=>!r.correct).map(r=>r.topic).filter(Boolean))];
+        scrollBottom();
+        resolve({ score, total:questions.length, results, weakTopics });
+      });
+      card.appendChild(submitBtn);
+      chatLog.insertBefore(card, activity); scrollBottom();
+    });
+  }
+  async function executeTool(name, args){
+    switch(name){
+      case 'get_progress': return getProgress();
+      case 'list_topics': return listTopics();
+      case 'get_card': return getCard(args.topic);
+      case 'mark_mastered': return markMastered(args.topic);
+      case 'run_quiz': return await runInlineQuiz(args.questions||[]);
+      default: return { error:'unknown tool: '+name };
+    }
+  }
+
+  // ---- LLM 流式客户端（OpenAI 兼容） ----
+  async function* llmChat(messages, signal){
+    const cfg = loadLlm();
+    if(!cfg.key){ const e=new Error('NO_KEY'); e.code='NO_KEY'; throw e; }
+    const res = await fetch(cfg.base.replace(/\/+$/,'')+'/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+cfg.key },
+      body: JSON.stringify({ model:cfg.model, messages, tools:TOOL_SPECS, tool_choice:'auto', stream:true }),
+      signal,
+    });
+    if(!res.ok){ const t=await res.text().catch(()=>''); throw new Error('HTTP '+res.status+' '+t.slice(0,400)); }
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf='';
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, { stream:true });
+      let nl;
+      while((nl = buf.indexOf('\n')) >= 0){
+        const line = buf.slice(0,nl).trim(); buf = buf.slice(nl+1);
+        if(!line || !line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if(data==='[DONE]') return;
+        let j; try{ j=JSON.parse(data); }catch{ continue; }
+        const d = j.choices && j.choices[0] && j.choices[0].delta; if(!d) continue;
+        yield d;
+      }
+    }
+  }
+
+  // ---- agent 循环 ----
+  async function runAgentTurn(userText){
+    if(busy) return;
+    if(!loadLlm().key){ openSettings(); return; }
+    busy = true; setBusy(true); abortCtrl = new AbortController();
+    history.push({ role:'user', content:userText }); store.set('aipm_chat', history);
+    addBubble('user', esc(userText));
+    const messages = [{ role:'system', content:SYSTEM_PROMPT }, ...history.map(m=>({role:m.role, content:m.content}))];
+    try{
+      for(let step=0; step<6; step++){
+        let text=''; const calls=[]; let bubble=null;
+        for await (const d of llmChat(messages, abortCtrl.signal)){
+          if(d.content){ text+=d.content; bubble = bubble || addBubble('assistant',''); bubble.innerHTML = md(text); scrollBottom(); }
+          if(d.tool_calls) for(const tc of d.tool_calls){
+            const i = (tc.index ?? 0);
+            if(!calls[i]) calls[i] = { id: tc.id || ('call_'+i+'_'+Date.now()), name:'', args:'' };
+            if(tc.id) calls[i].id = tc.id;
+            if(tc.function && tc.function.name){ calls[i].name = tc.function.name; setActivity(actLabel(tc.function.name)); }
+            if(tc.function && tc.function.arguments) calls[i].args += tc.function.arguments;
+          }
+        }
+        setActivity('');
+        const realCalls = calls.filter(Boolean);
+        const am = { role:'assistant', content: text || null };
+        if(realCalls.length) am.tool_calls = realCalls.map(c=>({ id:c.id, type:'function', function:{ name:c.name, arguments:c.args||'{}' } }));
+        messages.push(am);
+        if(text){ history.push({ role:'assistant', content:text }); store.set('aipm_chat', history); }
+        if(!realCalls.length) break;
+        for(const c of realCalls){
+          let args={}; try{ args=JSON.parse(c.args||'{}'); }catch{}
+          setActivity('⚙️ 执行 '+c.name+'…');
+          const result = await executeTool(c.name, args);
+          setActivity('');
+          messages.push({ role:'tool', tool_call_id:c.id, name:c.name, content: JSON.stringify(result) });
+        }
+      }
+    }catch(e){
+      if(e.code==='NO_KEY') openSettings();
+      else addBubble('assistant', '⚠️ '+esc(String(e.message||e)));
+    }finally{
+      busy=false; setBusy(false); abortCtrl=null; setActivity('');
+    }
+  }
+  function setBusy(b){ sendBtn.disabled=b; sendBtn.textContent=b?'…':'发送'; input.disabled=b; }
+
+  // ---- 设置 ----
+  const settingsSheet = document.getElementById('settingsSheet');
+  function openSettings(){
+    const c=loadLlm();
+    document.getElementById('setBase').value=c.base||'';
+    document.getElementById('setModel').value=c.model||'';
+    document.getElementById('setKey').value=c.key||'';
+    const tr=document.getElementById('testResult'); tr.textContent=''; tr.className='test-result';
+    settingsSheet.classList.add('open');
+  }
+  function closeSettings(){ settingsSheet.classList.remove('open'); }
+  document.getElementById('coachSettings').addEventListener('click', openSettings);
+  document.getElementById('setSave').addEventListener('click', ()=>{
+    store.set('aipm_llm', {
+      base: document.getElementById('setBase').value.trim()||'https://api.openai.com/v1',
+      model: document.getElementById('setModel').value.trim()||'gpt-4o-mini',
+      key: document.getElementById('setKey').value.trim()
+    });
+    closeSettings();
+  });
+  document.getElementById('setTest').addEventListener('click', async ()=>{
+    const tr=document.getElementById('testResult'); tr.className='test-result'; tr.textContent='测试中…';
+    const cfg={ base:document.getElementById('setBase').value.trim(), model:document.getElementById('setModel').value.trim(), key:document.getElementById('setKey').value.trim() };
+    try{
+      const r=await fetch(cfg.base.replace(/\/+$/,'')+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},body:JSON.stringify({model:cfg.model,messages:[{role:'user',content:'ping'}],max_tokens:5})});
+      if(!r.ok){ const t=await r.text().catch(()=>''); tr.className='test-result err'; tr.textContent='❌ HTTP '+r.status+' '+t.slice(0,160); }
+      else { tr.className='test-result ok'; tr.textContent='✅ 连接成功，模型可用'; }
+    }catch(e){ tr.className='test-result err'; tr.textContent='❌ '+String(e.message||e).slice(0,160)+'（可能 CORS，换支持浏览器的 provider）'; }
+  });
+  settingsSheet.addEventListener('click', e=>{ if(e.target===settingsSheet) closeSettings(); });
+  document.getElementById('coachClear').addEventListener('click', ()=>{ history=[]; store.set('aipm_chat',[]); renderHistory(); });
+
+  // ---- 输入 ----
+  input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height=Math.min(96, input.scrollHeight)+'px'; });
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+  sendBtn.addEventListener('click', send);
+  function send(){ const t=input.value.trim(); if(!t||busy) return; input.value=''; input.style.height='auto'; runAgentTurn(t); }
+
+  // ---- 随机抽查闭环（harness 驱动，不需要 LLM）----
+  function buildRoundPool() {
+    const favTopics = new Set([...favSet].map(i => FEED_DATA[i] && FEED_DATA[i].tag));
+    const markTopics = new Set([...markSet].map(i => FEED_DATA[i] && FEED_DATA[i].tag));
+    const all = [
+      ...QUIZ_DATA.map((q, i) => ({ q: q.q, opts: q.opts, ans: q.ans, exp: q.exp, topic: q.topic || '综合', src: 'quiz', idx: i })),
+      ...PODCAST_QUIZ.map(q => ({ q: q.q, opts: q.opts, ans: q.ans, exp: q.exp, topic: q.topic || '综合', src: 'podcast' }))
+    ];
+    const priority = [], rest = [];
+    for (const it of all) {
+      const inFav = favTopics.has(it.topic) || markTopics.has(it.topic);
+      const isWrong = it.src === 'quiz' && wrongBook.has(it.idx);
+      (inFav || isWrong ? priority : rest).push(it);
+    }
+    return [...shuffle(priority), ...shuffle(rest)];
+  }
+  async function startRound() {
+    if (busy) return;
+    const pool = buildRoundPool();
+    if (!pool.length) { addBubble('assistant', '题池为空。先去收藏/标记几道面试题、或刷几道题产生错题，抽查才会优先抽它们。'); return; }
+    const picked = pool.slice(0, Math.min(10, pool.length));
+    busy = true; setBusy(true);
+    addBubble('assistant', `🎲 随机抽查 · 本轮 ${picked.length} 题，题源优先来自你的收藏/标记/错题/播客知识点。`);
+    const res = await runInlineQuiz(picked);
+    renderSummaryCard(picked, res);
+    busy = false; setBusy(false);
+  }
+  function renderSummaryCard(picked, res) {
+    const card = document.createElement('div'); card.className = 'round-summary';
+    const rows = picked.map((p, i) => {
+      const r = res.results[i] || {};
+      const ua = r.userAns == null ? '未答' : 'ABCD'[r.userAns];
+      const ca = 'ABCD'[p.ans];
+      return `<div class="rs-row ${r.correct ? 'ok' : 'bad'}"><span class="rs-q">${i+1}. ${esc(p.q)}</span><span class="rs-ans">你: ${ua} · 正确: ${ca}</span></div>`;
+    }).join('');
+    card.innerHTML = `
+      <div class="rs-head">📊 抽查总结 · 得分 <b>${res.score}/${res.total}</b></div>
+      <div class="rs-list">${rows}</div>
+      <div class="rs-btns">
+        <button class="btn ghost" id="rsSave">⭐ 收藏</button>
+        <button class="btn" id="rsAgain">再来一次</button>
+      </div>`;
+    chatLog.insertBefore(card, activity); scrollBottom();
+    const round = {
+      date: new Date().toLocaleString('zh-CN'),
+      score: res.score, total: res.total,
+      questions: picked.map((p, i) => ({ q: p.q, opts: p.opts, ans: p.ans, exp: p.exp, topic: p.topic, userAns: res.results[i] && res.results[i].userAns, correct: res.results[i] && res.results[i].correct }))
+    };
+    const saveBtn = document.getElementById('rsSave');
+    saveBtn.addEventListener('click', () => {
+      rounds.unshift(round); store.set('aipm_rounds', rounds); renderChips();
+      saveBtn.disabled = true; saveBtn.textContent = '已收藏 ✓';
+    });
+    document.getElementById('rsAgain').addEventListener('click', startRound);
+  }
+  document.getElementById('quickRound').addEventListener('click', startRound);
+  document.getElementById('quickMore').addEventListener('click', startRound);
+
+  renderHistory();
+})();
+</script>
+</body>
+</html>

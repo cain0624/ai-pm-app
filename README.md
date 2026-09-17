@@ -10,8 +10,10 @@
 
 ## 使用
 - 直接打开 `index.html`，或访问 GitHub Pages 部署地址
-- 教练 Tab 需在「设置」填一个 OpenAI 兼容 API（OpenAI / 智谱 GLM / DeepSeek / OpenRouter / 本地 Ollama）
+- 教练 Tab 需在「设置」填一个 OpenAI 兼容 API。默认已预填硅基流动 `https://api.siliconflow.cn/v1` + `deepseek-ai/DeepSeek-V4-Flash`（跨域与 function calling 均实测可用），**只差你自己填一把 key**
 - 随机抽查与首页语音不需要 key
+
+> ⚠️ 纯静态页由浏览器直连厂商，所以**厂商必须回跨域（CORS）头**，否则预检就会被浏览器拦掉——curl 能通不代表页面能用。已实测：硅基流动 ✅、DeepSeek ✅；未实测：智谱 / OpenRouter / Ollama。像 `api.devin-tec.cn` 这类中转站实测**不回** CORS 头，页面里用不了。
 
 ## 离线演示教练对话
 ```bash

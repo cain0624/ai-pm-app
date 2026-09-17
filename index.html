@@ -399,13 +399,15 @@
       <h3>大模型接入设置</h3>
       <div class="field">
         <label>API Base URL</label>
-        <input id="setBase" placeholder="https://api.openai.com/v1">
-        <div class="hint">智谱 GLM：https://open.bigmodel.cn/api/paas/v4 ｜ DeepSeek：https://api.deepseek.com ｜ OpenRouter：https://openrouter.ai/api/v1 ｜ 本地 Ollama：http://localhost:11434/v1</div>
+        <input id="setBase" placeholder="https://api.siliconflow.cn/v1">
+        <div class="hint">跨域实测可用：硅基流动 https://api.siliconflow.cn/v1 ｜ DeepSeek https://api.deepseek.com/v1<br>
+          其他（未实测跨域，能不能用取决于厂商）：智谱 GLM https://open.bigmodel.cn/api/paas/v4 ｜ OpenRouter https://openrouter.ai/api/v1 ｜ 本地 Ollama http://localhost:11434/v1<br>
+          ⚠️ 本项目是纯静态页，由浏览器直连厂商，所以<b>厂商必须回跨域头</b>。像 api.devin-tec.cn 这类中转站实测不回 CORS 头，填了会在预检就被浏览器拦掉。</div>
       </div>
       <div class="field">
         <label>模型名</label>
-        <input id="setModel" placeholder="gpt-4o-mini">
-        <div class="hint">GLM 用 glm-4.6 / glm-4.5-air；DeepSeek 用 deepseek-chat；需支持 function calling</div>
+        <input id="setModel" placeholder="deepseek-ai/DeepSeek-V4-Flash">
+        <div class="hint">硅基流动用 deepseek-ai/DeepSeek-V4-Flash ｜ DeepSeek 官方用 deepseek-chat ｜ GLM 用 glm-4.6 / glm-4.5-air（需支持 function calling）</div>
       </div>
       <div class="field">
         <label>API Key</label>
@@ -1540,7 +1542,19 @@ startQuiz();
   let history = store.get('aipm_chat', []);
   let busy = false, abortCtrl = null;
 
-  const loadLlm = () => store.get('aipm_llm', { base:'https://api.openai.com/v1', key:'', model:'gpt-4o-mini' });
+  /* 默认值挑「浏览器跨域实测可用」的那家。原来的 api.openai.com 本机没实测过跨域，
+     国内网络通常还得挂代理 —— 当默认值等于让用户先撞一次墙。
+     硅基流动是实测过的：响应带 access-control-allow-origin: *；且这个模型支持
+     function calling，够跑下面的 agent 循环（都实测过，不是照文档抄的）。
+     key 一律留空：这是静态站，key 只能由用户自己填、自己存在本机。
+
+     只在这里定义一次：保存设置时的兜底值也引它。原先两处各写了一份，改了这处忘了那处，
+     就会出现「首次打开是 A、清空后一保存变成 B」这种很难查的怪象。
+
+     用 Object.assign 兜底而不是直接返回：用户存在本机的配置若缺字段（早期版本存的），
+     缺的那几项会落到默认值上，不会变成 undefined 一路传到请求体里。 */
+  const LLM_DEFAULT = { base:'https://api.siliconflow.cn/v1', key:'', model:'deepseek-ai/DeepSeek-V4-Flash' };
+  const loadLlm = () => Object.assign({}, LLM_DEFAULT, store.get('aipm_llm', {}) || {});
   const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const md = s => esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
   const scrollBottom = () => { chatLog.scrollTop = chatLog.scrollHeight; };
@@ -1720,8 +1734,8 @@ startQuiz();
   document.getElementById('coachSettings').addEventListener('click', openSettings);
   document.getElementById('setSave').addEventListener('click', ()=>{
     store.set('aipm_llm', {
-      base: document.getElementById('setBase').value.trim()||'https://api.openai.com/v1',
-      model: document.getElementById('setModel').value.trim()||'gpt-4o-mini',
+      base: document.getElementById('setBase').value.trim()||LLM_DEFAULT.base,
+      model: document.getElementById('setModel').value.trim()||LLM_DEFAULT.model,
       key: document.getElementById('setKey').value.trim()
     });
     closeSettings();
